@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
+import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { User } from '../types';
 
 interface AuthContextType {
@@ -105,13 +106,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   useEffect(() => {
+    console.log('AuthContext: Setting up auth listener');
+
+    const timeout = setTimeout(() => {
+      console.log('AuthContext: Timeout reached, setting loading to false');
+      setLoading(false);
+    }, 5000);
+
     const unsubscribe = auth().onAuthStateChanged(async (firebaseUser) => {
+      console.log('AuthContext: Auth state changed', firebaseUser ? 'User logged in' : 'No user');
+      clearTimeout(timeout);
       setUser(firebaseUser);
-      
+
       if (firebaseUser) {
         try {
           let userDoc = await getUserDocument(firebaseUser.uid);
-          
+
           if (!userDoc) {
             userDoc = await createUserDocument(
               firebaseUser.uid,
@@ -120,7 +130,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               firebaseUser.photoURL || undefined
             );
           }
-          
+
           setUserData(userDoc);
           await AsyncStorage.setItem('user', JSON.stringify(userDoc));
         } catch (error) {
@@ -130,11 +140,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUserData(null);
         await AsyncStorage.removeItem('user');
       }
-      
+
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      clearTimeout(timeout);
+      unsubscribe();
+    };
   }, []);
 
   const value: AuthContextType = {
