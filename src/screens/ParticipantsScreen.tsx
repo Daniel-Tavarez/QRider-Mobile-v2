@@ -40,7 +40,7 @@ export function ParticipantsScreen({ route, navigation }: ParticipantsScreenProp
         .doc(eventId)
         .get();
       
-      if (eventDoc.exists) {
+      if (eventDoc.exists()) {
         setEvent({ id: eventDoc.id, ...eventDoc.data() } as Event);
       }
 
@@ -58,7 +58,7 @@ export function ParticipantsScreen({ route, navigation }: ParticipantsScreenProp
               .collection('profiles')
               .doc(registration.uid)
               .get();
-            if (profileDoc.exists) {
+            if (profileDoc.exists()) {
               return {
                 ...registration,
                 profile: profileDoc.data() as Profile

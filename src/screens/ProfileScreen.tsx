@@ -29,7 +29,7 @@ export function ProfileScreen() {
     
     try {
       const profileDoc = await firestore().collection('profiles').doc(user.uid).get();
-      if (profileDoc.exists) {
+      if (profileDoc.exists()) {
         setProfile(profileDoc.data() as Profile);
       }
     } catch (error) {

@@ -1,8 +1,8 @@
-import firebase from '@react-native-firebase/app';
 import React from 'react';
 import { StatusBar, useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { firebaseConfig } from './firebase.config';
+import firebase from './src/config/firebaseConfig';
 import { theme } from './src/constants/theme';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { AppNavigator } from './src/navigation/AppNavigator';

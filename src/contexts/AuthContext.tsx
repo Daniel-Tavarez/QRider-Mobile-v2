@@ -68,7 +68,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const getUserDocument = async (uid: string): Promise<User | null> => {
     const userDoc = await firestore().collection('users').doc(uid).get();
-    return userDoc.exists ? (userDoc.data() as User) : null;
+    return userDoc.exists() ? (userDoc.data() as User) : null;
   };
 
   const signUp = async (email: string, password: string, displayName: string) => {
