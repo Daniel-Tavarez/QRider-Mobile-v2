@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, Alert, Linking, Platform } from 'react-native';
 import { geofenceService } from './GeofenceService';
 import { syncManager } from './GeofenceSyncManager';
 import { defineGeofenceTask } from './GeofenceTaskManager';
 import { Checkpoint, GeofenceEvent, GeofenceStatus } from './types';
+import { TrackingService } from '../../lib/TrackingService';
 
 export const useGeofence = (eventId: string, userId: string) => {
   const [status, setStatus] = useState<GeofenceStatus>({
@@ -55,6 +56,17 @@ export const useGeofence = (eventId: string, userId: string) => {
         throw new Error('Location permissions not granted');
       }
 
+      if (Platform.OS === 'android') {
+        try {
+          await TrackingService.start(
+            'QRider seguimiento activo',
+            'Seguimiento en segundo plano habilitado'
+          );
+        } catch (e) {
+          console.warn('Failed to start foreground service:', e);
+        }
+      }
+
       const shouldUpdate = await geofenceService.shouldUpdateCheckpoints(eventId);
 
       let downloadedCheckpoints: Checkpoint[];
@@ -80,6 +92,26 @@ export const useGeofence = (eventId: string, userId: string) => {
       await updateStatus();
 
       console.log('Geofencing initialized successfully');
+
+      if (Platform.OS === 'android') {
+        Alert.alert(
+          'Optimiza para background',
+          'Para registrar checkpoints con la pantalla apagada:\n\n' +
+            '1) Ajustes > Ubicación > QRider > Permitir todo el tiempo.\n' +
+            '2) Ajustes > Batería > Optimización > Excluir QRider (Sin restricciones).\n' +
+            '3) Mantén el GPS activado.',
+          [
+            { text: 'OK' },
+            { text: 'Abrir Ajustes', onPress: () => Linking.openSettings() },
+          ]
+        );
+      } else if (Platform.OS === 'ios') {
+        Alert.alert(
+          'Permiso Siempre',
+          'Para registrar checkpoints en segundo plano, ve a Ajustes > QRider > Ubicación y selecciona "Siempre". Activa "Ubicación precisa".',
+          [{ text: 'OK' }]
+        );
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to initialize geofencing';
       setError(errorMessage);
@@ -92,6 +124,9 @@ export const useGeofence = (eventId: string, userId: string) => {
   const stopGeofencing = useCallback(async () => {
     try {
       await geofenceService.stopGeofencing();
+      if (Platform.OS === 'android') {
+        try { await TrackingService.stop(); } catch {}
+      }
       await updateStatus();
     } catch (err) {
       console.error('Error stopping geofencing:', err);

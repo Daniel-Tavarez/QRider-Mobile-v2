@@ -188,6 +188,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       // Ensure any active event/geofence is stopped when logging out
       await geofenceService.stopGeofencing();
+      try {
+        const { Platform } = require('react-native');
+        if (Platform.OS === 'android') {
+          const { TrackingService } = require('../lib/TrackingService');
+          await TrackingService.stop();
+        }
+      } catch {}
       await AsyncStorage.clear();
     } catch (e) {
       // non-fatal

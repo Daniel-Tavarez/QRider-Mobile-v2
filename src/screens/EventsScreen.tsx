@@ -23,7 +23,9 @@ interface EventsScreenProps {
 export function EventsScreen({ navigation }: EventsScreenProps) {
   const { user } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
-  const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
+  const [participantCounts, setParticipantCounts] = useState<
+    Record<string, number>
+  >({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -36,19 +38,19 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       yesterday.setHours(0, 0, 0, 0);
-      
+
       const formattedDate = yesterday.toISOString().split('T')[0];
       const querySnapshot = await firestore()
-      .collection('events')
-      .where('date', '>=', formattedDate)
-      .orderBy('date', 'desc')
-      .get();
-      
+        .collection('events')
+        .where('date', '>=', formattedDate)
+        .orderBy('date', 'desc')
+        .get();
+
       const eventsData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
       })) as Event[];
-      
+
       setEvents(eventsData);
 
       // Load participant counts for each event
@@ -134,108 +136,118 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
         }
       >
         {events.length > 0 ? (
-          events.map(event => (
-            <TouchableOpacity
-              key={event.id}
-              onPress={() =>
-                navigation.navigate('EventDetail', { eventId: event.id })
-              }
-              activeOpacity={0.7}
-            >
-              <Card style={styles.eventCard}>
-                <View style={styles.eventHeader}>
-                  <View style={styles.eventInfo}>
-                    <Text style={styles.eventTitle}>{event.title}</Text>
-                    <View style={styles.eventMeta}>
-                      <View style={styles.eventDate}>
-                        <Icon
-                          name="calendar"
-                          size={16}
-                          color={theme.colors.textSecondary}
-                        />
-                        <Text style={styles.eventDateText}>
-                          {formatDate(event.date)}
-                        </Text>
-                        {event.startTime && (
-                          <Text style={styles.eventTime}>
-                            {event.startTime}
+          events.map((event, index) => {
+            const isLast = index === events.length - 1;
+
+            return (
+              <TouchableOpacity
+                key={event.id}
+                onPress={() =>
+                  navigation.navigate('EventDetail', { eventId: event.id })
+                }
+                activeOpacity={0.7}
+              >
+                <Card
+                  style={StyleSheet.flatten([
+                    styles.eventCard,
+                    isLast && styles.eventItemLast,
+                  ])}
+                >
+                  <View style={styles.eventHeader}>
+                    <View style={styles.eventInfo}>
+                      <Text style={styles.eventTitle}>{event.title}</Text>
+                      <View style={styles.eventMeta}>
+                        <View style={styles.eventDate}>
+                          <Icon
+                            name="calendar"
+                            size={16}
+                            color={theme.colors.textSecondary}
+                          />
+                          <Text style={styles.eventDateText}>
+                            {formatDate(event.date)}
                           </Text>
+                          {event.startTime && (
+                            <Text style={styles.eventTime}>
+                              {event.startTime}
+                            </Text>
+                          )}
+                        </View>
+                        {isEventPast(event.date) && (
+                          <View style={styles.pastBadge}>
+                            <Text style={styles.pastText}>Finalizado</Text>
+                          </View>
                         )}
                       </View>
-                      {isEventPast(event.date) && (
-                        <View style={styles.pastBadge}>
-                          <Text style={styles.pastText}>Finalizado</Text>
+                    </View>
+                    <View style={styles.eventBadges}>
+                      {event.createdBy === user?.uid && (
+                        <View style={styles.adminBadge}>
+                          <Text style={styles.adminText}>Admin</Text>
+                        </View>
+                      )}
+                      {event.difficulty && (
+                        <View
+                          style={[
+                            styles.difficultyBadge,
+                            {
+                              backgroundColor: getDifficultyColor(
+                                event.difficulty,
+                              ),
+                            },
+                          ]}
+                        >
+                          <Text style={styles.difficultyText}>
+                            {getDifficultyText(event.difficulty)}
+                          </Text>
                         </View>
                       )}
                     </View>
                   </View>
-                  <View style={styles.eventBadges}>
-                    {event.createdBy === user?.uid && (
-                      <View style={styles.adminBadge}>
-                        <Text style={styles.adminText}>Admin</Text>
-                      </View>
-                    )}
-                    {event.difficulty && (
-                      <View
-                        style={[
-                          styles.difficultyBadge,
-                          {
-                            backgroundColor: getDifficultyColor(
-                              event.difficulty,
-                            ),
-                          },
-                        ]}
-                      >
-                        <Text style={styles.difficultyText}>
-                          {getDifficultyText(event.difficulty)}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
 
-                {event.meetingPoint.text && (
-                  <View style={styles.meetingPoint}>
-                    <Icon
-                      name="location"
-                      size={16}
-                      color={theme.colors.textSecondary}
-                    />
-                    <Text style={styles.meetingPointText}>
-                      {event.meetingPoint.text}
+                  {event.meetingPoint.text && (
+                    <View style={styles.meetingPoint}>
+                      <Icon
+                        name="location"
+                        size={16}
+                        color={theme.colors.textSecondary}
+                      />
+                      <Text style={styles.meetingPointText}>
+                        {event.meetingPoint.text}
+                      </Text>
+                    </View>
+                  )}
+
+                  {event.notes && (
+                    <Text style={styles.eventNotes} numberOfLines={2}>
+                      {event.notes}
                     </Text>
-                  </View>
-                )}
+                  )}
 
-                {event.notes && (
-                  <Text style={styles.eventNotes} numberOfLines={2}>
-                    {event.notes}
-                  </Text>
-                )}
-
-                <View style={styles.eventFooter}>
-                  <View style={styles.capacityInfo}>
+                  <View style={styles.eventFooter}>
+                    <View style={styles.capacityInfo}>
+                      <Icon
+                        name="people"
+                        size={16}
+                        color={theme.colors.textSecondary}
+                      />
+                      <Text style={styles.capacityText}>
+                        {event.capacity
+                          ? `${participantCounts[event.id] || 0}/${
+                              event.capacity
+                            }`
+                          : `${participantCounts[event.id] || 0} confirmados`}
+                      </Text>
+                    </View>
                     <Icon
-                      name="people"
-                      size={16}
-                      color={theme.colors.textSecondary}
+                      name="chevron-forward"
+                      size={20}
+                      color={theme.colors.gray[400]}
                     />
-                    <Text style={styles.capacityText}>
-                      {event.capacity 
-                        ? `${participantCounts[event.id] || 0}/${event.capacity}` 
-                        : `${participantCounts[event.id] || 0} confirmados`
-                      }
-                    </Text>
                   </View>
-                  <Icon
-                    name="chevron-forward"
-                    size={20}
-                    color={theme.colors.gray[400]}
-                  />
-                </View>
-              </Card>
-            </TouchableOpacity>
-          ))
+                </Card>
+              </TouchableOpacity>
+            );
+          })
         ) : (
           <View style={styles.emptyContainer}>
             <Icon
@@ -258,6 +270,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.surface,
+    paddingBottom: -theme.spacing.lg,
   },
   header: {
     backgroundColor: theme.colors.primary,
@@ -289,6 +302,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  eventItemLast: {
+    marginBottom: theme.spacing.xxl,
   },
   eventHeader: {
     flexDirection: 'row',

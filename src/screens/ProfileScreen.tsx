@@ -379,7 +379,12 @@ export function ProfileScreen() {
             </Card>
 
             {/* Vehículo */}
-            <Card style={styles.sectionCard}>
+            <Card
+              style={StyleSheet.flatten([
+                styles.sectionCard,
+                styles.moreMarginBottom,
+              ])}
+            >
               <Text style={styles.sectionTitle}>Vehículo</Text>
               {profile.bike ? (
                 <View style={styles.infoGrid}>
@@ -458,6 +463,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.gray[50],
+    paddingBottom: -theme.spacing.md,
   },
   header: {
     flexDirection: 'row',
@@ -480,6 +486,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
   },
   userCard: {
     backgroundColor: '#E3F2FD',
@@ -523,6 +530,9 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     marginBottom: theme.spacing.md,
+  },
+  moreMarginBottom: {
+    marginBottom: theme.spacing.xxl,
   },
   sectionTitle: {
     fontSize: theme.typography.h4.fontSize,

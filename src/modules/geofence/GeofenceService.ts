@@ -5,7 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // via platform APIs. Below we provide minimal, JS-based fallbacks so the project is
 // no longer dependent on Expo packages.
 import firestore from '@react-native-firebase/firestore';
-import { PermissionsAndroid, Platform } from 'react-native';
+import { Alert, Linking, PermissionsAndroid, Platform } from 'react-native';
+import Geolocation from 'react-native-geolocation-service';
 import { geofenceMonitor } from './GeofenceMonitor';
 import { Checkpoint, GeofenceRegion } from './types';
 
@@ -30,12 +31,21 @@ export class GeofenceService {
     try {
       if (Platform.OS === 'android') {
         console.log('Requesting location permissions on Android');
-        const granted = await PermissionsAndroid.requestMultiple([
+        const toRequest: string[] = [
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
           PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
-        ]);
+        ];
+        // Android 13+: ask notifications permission for foreground service notification
+        try {
+          if (Platform.Version >= 33) {
+            const postNotif = (PermissionsAndroid as any)?.PERMISSIONS?.POST_NOTIFICATIONS;
+            if (postNotif) toRequest.push(postNotif);
+          }
+        } catch {}
 
-        const ok =
+        const granted = await PermissionsAndroid.requestMultiple(toRequest as any);
+
+        let ok =
           granted[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] ===
             PermissionsAndroid.RESULTS.GRANTED ||
           granted[PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION] ===
@@ -43,13 +53,43 @@ export class GeofenceService {
 
         if (!ok) {
           console.log('Location permission not granted on Android');
+          return false;
         }
-        // Note: background location permission on Android requires manifest + runtime handling
+
+        // Android 10+: ACCESS_BACKGROUND_LOCATION
+        try {
+          if (Platform.Version >= 29) {
+            const bgPerm = (PermissionsAndroid as any)?.PERMISSIONS?.ACCESS_BACKGROUND_LOCATION;
+            if (bgPerm) {
+              const bg = await PermissionsAndroid.request(bgPerm);
+              if (bg !== PermissionsAndroid.RESULTS.GRANTED) {
+                Alert.alert(
+                  'Permiso en segundo plano requerido',
+                  'Para registrar checkpoints con la pantalla apagada, permite "Ubicación: Permitir todo el tiempo" y desactiva optimizaciones de batería para QRider.',
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    { text: 'Abrir Ajustes', onPress: () => Linking.openSettings() },
+                  ]
+                );
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('ACCESS_BACKGROUND_LOCATION request error:', e);
+        }
         return ok;
       }
 
-      // On iOS the location permission prompt is driven by Info.plist entries.
-      // Assume permissions will be requested via native dialogs when needed.
+      if (Platform.OS === 'ios') {
+        try {
+          const auth = await Geolocation.requestAuthorization('always');
+          return auth === 'granted' || (auth as any) === 'authorizedAlways';
+        } catch (e) {
+          console.warn('iOS requestAuthorization(always) failed:', e);
+          return false;
+        }
+      }
+
       return true;
     } catch (error) {
       console.error('Error requesting permissions:', error);

@@ -48,18 +48,12 @@ class GeofenceMonitor {
       (err) => this.onError(err),
       {
         enableHighAccuracy: true,
-        distanceFilter: 10,
-        interval: 5_000,
-        fastestInterval: 3_000,
+        distanceFilter: 15,
+        interval: 10_000,
+        fastestInterval: 5_000,
         showsBackgroundLocationIndicator: true,
         forceRequestLocation: true,
         useSignificantChanges: false,
-        ...(Platform.OS === 'android' && {
-          foregroundService: {
-            notificationTitle: 'Rastreando evento',
-            notificationBody: 'QRider está monitoreando tu ubicación',
-          },
-        }),
       }
     );
   }

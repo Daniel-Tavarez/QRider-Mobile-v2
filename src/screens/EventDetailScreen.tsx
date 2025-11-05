@@ -258,7 +258,10 @@ export function EventDetailScreen({
     });
   };
 
-  const formatTimestamp = (timestamp: { _seconds: number; _nanoseconds: number }): string => {
+  const formatTimestamp = (timestamp: {
+    _seconds: number;
+    _nanoseconds: number;
+  }): string => {
     const date = new Date(timestamp._seconds * 1000);
     return date.toLocaleString('es-ES', {
       day: 'numeric',
@@ -388,7 +391,7 @@ export function EventDetailScreen({
         }
       >
         <Card style={styles.eventCard}>
-          <Text style={styles.sectionTitle}>Detalles del evento</Text>
+          <Text style={styles.sectionTitle}>{event.title}</Text>
 
           <View style={styles.detailsGrid}>
             <View style={styles.detailItem}>
@@ -425,8 +428,14 @@ export function EventDetailScreen({
                       onPress={() => openLink(event.meetingPoint!.mapUrl!)}
                       style={styles.linkButton}
                     >
-                      <Icon name="map" size={16} color={theme.colors.primary} />
-                      <Text style={styles.linkText}>Ver en mapa</Text>
+                      <Icon
+                        name="location"
+                        size={20}
+                        color={theme.colors.primary}
+                      />
+                      <Text style={styles.linkText}>
+                        Ir al punto de encuentro
+                      </Text>
                     </TouchableOpacity>
                   )}
                   {event.meetingPoint.routeUrl && (
@@ -434,7 +443,11 @@ export function EventDetailScreen({
                       onPress={() => openLink(event.meetingPoint!.routeUrl!)}
                       style={styles.linkButton}
                     >
-                      <Icon name="navigate" size={16} color={theme.colors.primary} />
+                      <Icon
+                        name="location"
+                        size={20}
+                        color={theme.colors.primary}
+                      />
                       <Text style={styles.linkText}>Ver ruta</Text>
                     </TouchableOpacity>
                   )}
@@ -476,11 +489,7 @@ export function EventDetailScreen({
 
             {event.window && (
               <View style={styles.detailItem}>
-                <Icon
-                  name="time"
-                  size={20}
-                  color={theme.colors.info}
-                />
+                <Icon name="time" size={20} color={theme.colors.info} />
                 <View style={styles.detailContent}>
                   <Text style={styles.detailLabel}>Ventana del evento</Text>
                   <Text style={styles.detailValue}>
@@ -502,7 +511,9 @@ export function EventDetailScreen({
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Modo de acceso</Text>
                 <Text style={styles.detailValue}>
-                  {event.joinMode === 'public' ? 'Público' : 'Privado (con código)'}
+                  {event.joinMode === 'public'
+                    ? 'Público'
+                    : 'Privado (con código)'}
                 </Text>
               </View>
             </View>
@@ -585,15 +596,6 @@ export function EventDetailScreen({
                 {isEventActive ? 'Evento Activo' : 'Control de Evento'}
               </Text>
             </View>
-
-            {isEventActive && (
-              <View style={styles.activeStatusBadge}>
-                <View style={styles.pulseDot} />
-                <Text style={styles.activeStatusText}>
-                  Rastreando checkpoints
-                </Text>
-              </View>
-            )}
 
             <Text style={styles.eventControlMessage}>
               {isEventActive
@@ -1010,7 +1012,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F5E8',
     borderLeftWidth: 4,
     borderLeftColor: theme.colors.success,
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.xxl,
   },
   statusTitle: {
     fontSize: theme.typography.h4.fontSize,
