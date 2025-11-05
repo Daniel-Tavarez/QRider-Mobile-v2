@@ -375,9 +375,30 @@ export function CheckpointsScreen({
                                     styles.completedTime,
                                   ]}
                                 >
-                                  Cruzado:{' '}
+                                  Entrada:{' '}
                                   {formatTimestamp(
-                                    (checkpointProgress as any).timestamp,
+                                      (checkpointProgress as any).timestamp,
+                                    )}
+                                </Text>
+                              </View>
+                            )}
+
+                            {checkpointProgress && (checkpointProgress as any).exitTimestamp && (
+                              <View style={styles.stepDetailItem}>
+                                <Icon
+                                  name="log-out-outline"
+                                  size={16}
+                                  color={theme.colors.warning}
+                                />
+                                <Text
+                                  style={[
+                                    styles.stepDetailText,
+                                    { color: theme.colors.warning, fontWeight: '600' },
+                                  ]}
+                                >
+                                  Salida:{' '}
+                                  {formatTimestamp(
+                                    (checkpointProgress as any).exitTimestamp,
                                   )}
                                 </Text>
                               </View>

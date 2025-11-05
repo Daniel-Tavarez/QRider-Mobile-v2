@@ -267,6 +267,24 @@ export class GeofenceSyncManager {
               },
               { merge: true }
             );
+          } else if (event.eventType === 'EXIT') {
+            // Update same progress doc with exit fields
+            const docId = `${event.eventId}_${event.userId}_${event.checkpointId}`;
+            const docRef = firestore().collection('checkpointProgress').doc(docId);
+            await docRef.set(
+              {
+                checkpointId: event.checkpointId,
+                uid: event.userId,
+                event_id: event.eventId,
+                exitLatitude: event.latitude,
+                exitLongitude: event.longitude,
+                exitTimestamp: (firestore as any).Timestamp?.fromDate
+                  ? (firestore as any).Timestamp.fromDate(new Date(event.timestamp))
+                  : event.timestamp,
+                updated_at: firestore.FieldValue.serverTimestamp(),
+              },
+              { merge: true }
+            );
           }
 
           syncedEventIds.push(event.id);

@@ -136,7 +136,7 @@ export function AuthScreen() {
                 resizeMode="contain"
               />
             </View>
-            <Text style={styles.heroTitle}>Bienvenido a QRider</Text>
+            {/* <Text style={styles.heroTitle}>Bienvenido a QRider</Text> */}
             <Text style={styles.heroSubtitle}>
               Tu compañero de aventuras sobre ruedas
             </Text>
@@ -152,7 +152,7 @@ export function AuthScreen() {
 
             {isSignUp && (
               <View style={styles.inputWrapper}>
-                <Icon name="person" size={20} color={theme.colors.gray[500]} />
+                {/* <Icon name="person" size={20} color={theme.colors.gray[500]} /> */}
                 <TextInput
                   style={styles.input}
                   placeholder="Nombre completo"
@@ -166,7 +166,7 @@ export function AuthScreen() {
             )}
 
             <View style={styles.inputWrapper}>
-              <Icon name="mail" size={20} color={theme.colors.gray[500]} />
+              {/* <Icon name="mail" size={20} color={theme.colors.gray[500]} /> */}
               <TextInput
                 placeholderTextColor={theme.colors.gray[500]}
                 style={styles.input}
@@ -180,7 +180,7 @@ export function AuthScreen() {
             </View>
 
             <View style={styles.inputWrapper}>
-              <Icon name="lock-closed" size={20} color={theme.colors.gray[500]} />
+              {/* <Icon name="lock-closed" size={20} color={theme.colors.gray[500]} /> */}
               <TextInput
                 placeholderTextColor={theme.colors.gray[500]}
                 style={styles.input}
@@ -194,7 +194,7 @@ export function AuthScreen() {
 
             {isSignUp && (
               <View style={styles.inputWrapper}>
-                <Icon name="lock-closed" size={20} color={theme.colors.gray[500]} />
+                {/* <Icon name="lock-closed" size={20} color={theme.colors.gray[500]} /> */}
                 <TextInput
                   placeholderTextColor={theme.colors.gray[500]}
                   style={styles.input}
@@ -255,7 +255,7 @@ export function AuthScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.backgroundDark,
+    backgroundColor: theme.colors.gray[50],
   },
   keyboardView: {
     flex: 1,
@@ -271,9 +271,9 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xl,
   },
   logoContainer: {
-    width: 120,
-    height: 120,
-    marginBottom: theme.spacing.lg,
+    width: 150,
+    height: 150,
+    marginBottom: 0,
   },
   logo: {
     width: '100%',
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   },
   heroSubtitle: {
     fontSize: 16,
-    color: theme.colors.gray[400],
+    color: theme.colors.gray[600],
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -324,7 +324,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     marginBottom: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md,
     borderWidth: 2,
     borderColor: 'transparent',
   },
@@ -381,7 +380,7 @@ const styles = StyleSheet.create({
   forgotButton: {
     alignItems: 'center',
     paddingVertical: theme.spacing.sm,
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
   },
   forgotText: {
     fontSize: theme.typography.caption.fontSize,
@@ -392,7 +391,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: theme.spacing.md,
   },
   switchText: {
     fontSize: theme.typography.body.fontSize,

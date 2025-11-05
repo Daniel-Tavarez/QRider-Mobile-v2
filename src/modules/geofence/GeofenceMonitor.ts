@@ -9,14 +9,15 @@ const INSIDE_STATE_KEY_PREFIX = 'geofence_inside_state_';
 const LAST_EVENT_TS_KEY_PREFIX = 'geofence_last_event_ts_';
 
 type InsideState = Record<string, boolean>; // checkpointId -> inside
-type LastEventTs = Record<string, number>; // checkpointId -> epoch ms
+type LastEventTs = Record<string, number | { t: number; type: 'ENTER' | 'EXIT' }>; // checkpointId -> last event info
 
 class GeofenceMonitor {
   private watchId: number | null = null;
   private activeEventId: string | null = null;
   private userId: string | null = null;
   private checkpoints: Checkpoint[] = [];
-  private cooldownMs = 60_000; // 60s cooldown per checkpoint to prevent flapping
+  // Cooldown reducido para alta respuesta en vehículos
+  private cooldownMs = 3_000; // 3s per checkpoint/type para evitar rebotes
 
   async start(eventId: string, userId: string) {
     this.activeEventId = eventId;
@@ -48,9 +49,9 @@ class GeofenceMonitor {
       (err) => this.onError(err),
       {
         enableHighAccuracy: true,
-        distanceFilter: 15,
-        interval: 10_000,
-        fastestInterval: 5_000,
+        distanceFilter: 5,
+        interval: 3_000,
+        fastestInterval: 1_500,
         showsBackgroundLocationIndicator: true,
         forceRequestLocation: true,
         useSignificantChanges: false,
@@ -90,21 +91,53 @@ class GeofenceMonitor {
 
       for (const cp of this.checkpoints) {
         const wasInside = !!inside[cp.id];
-        const isInside = this.isWithinRadius(latitude, longitude, cp.latitude, cp.longitude, cp.radius);
-        const last = lastTs[cp.id] || 0;
-        const cooledDown = now - last > this.cooldownMs;
+        const dist = this.distanceMeters(latitude, longitude, cp.latitude, cp.longitude);
 
-        if (!wasInside && isInside && cp.notify_on_enter && cooledDown) {
-          await this.emitEvent('ENTER', cp, latitude, longitude);
-          inside[cp.id] = true;
-          lastTs[cp.id] = now;
-        } else if (wasInside && !isInside && cp.notify_on_exit && cooledDown) {
-          await this.emitEvent('EXIT', cp, latitude, longitude);
-          inside[cp.id] = false;
-          lastTs[cp.id] = now;
+        const lastRec = lastTs[cp.id];
+        let lastTime = 0;
+        let lastType: 'ENTER' | 'EXIT' | null = null;
+        if (typeof lastRec === 'number') {
+          lastTime = lastRec;
+          lastType = null;
+        } else if (lastRec && typeof lastRec === 'object') {
+          lastTime = (lastRec as any).t || 0;
+          lastType = (lastRec as any).type || null;
+        }
+
+        const cooledDownFor = (type: 'ENTER' | 'EXIT') => {
+          if (lastType === type) {
+            return now - lastTime > this.cooldownMs;
+          }
+          return true;
+        };
+
+        // Hysteresis para evitar rebotes en el borde del radio
+        const hysteresis = Math.min(25, Math.max(10, cp.radius * 0.1));
+        const enterThreshold = Math.max(0, cp.radius - hysteresis);
+        const exitThreshold = cp.radius + hysteresis;
+
+        if (!wasInside) {
+          // Considerar entrada solo cuando cruza claramente por debajo del umbral
+          if (dist <= enterThreshold) {
+            if (cp.notify_on_enter && cooledDownFor('ENTER')) {
+              await this.emitEvent('ENTER', cp, latitude, longitude);
+              lastTs[cp.id] = { t: now, type: 'ENTER' } as any;
+            }
+            inside[cp.id] = true;
+          } else {
+            inside[cp.id] = false;
+          }
         } else {
-          // keep state as-is
-          inside[cp.id] = isInside;
+          // Considerar salida solo cuando cruza claramente por encima del umbral
+          if (dist >= exitThreshold) {
+            if (cp.notify_on_exit && cooledDownFor('EXIT')) {
+              await this.emitEvent('EXIT', cp, latitude, longitude);
+              lastTs[cp.id] = { t: now, type: 'EXIT' } as any;
+            }
+            inside[cp.id] = false;
+          } else {
+            inside[cp.id] = true;
+          }
         }
       }
 
@@ -156,6 +189,16 @@ class GeofenceMonitor {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
     return distance <= radiusMeters;
+  }
+
+  private distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371000; // meters
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
   }
 }
 

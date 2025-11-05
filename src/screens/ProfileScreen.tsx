@@ -125,7 +125,6 @@ export function ProfileScreen() {
                 {userData?.displayName || 'Usuario'}
               </Text>
               <Text style={styles.userEmail}>{userData?.email}</Text>
-              <Text style={styles.userSlug}>@{userData?.slug}</Text>
             </View>
           </View>
         </Card>
@@ -489,9 +488,8 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xl,
   },
   userCard: {
-    backgroundColor: '#E3F2FD',
     borderLeftWidth: 4,
-    borderLeftColor: theme.colors.info,
+    borderLeftColor: theme.colors.primary,
   },
   userHeader: {
     flexDirection: 'row',

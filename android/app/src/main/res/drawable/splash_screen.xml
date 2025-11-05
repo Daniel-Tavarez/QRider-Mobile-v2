@@ -3,11 +3,14 @@
     <!-- Background color -->
     <item android:drawable="@color/splash_background" />
 
-    <!-- Centered logo (uses app icon by default; replace with @drawable/splash_logo if you add it) -->
-    <item>
+    <!-- Centered logo with fixed size (adjust width/height as needed) -->
+    <item
+        android:width="200dp"
+        android:height="200dp"
+        android:gravity="center">
         <bitmap
-            android:gravity="center"
-            android:src="@drawable/splash_logo" />
+            android:src="@drawable/splash_logo"
+            android:gravity="fill"
+            android:antialias="true" />
     </item>
 </layer-list>
-
