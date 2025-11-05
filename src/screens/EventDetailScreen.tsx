@@ -85,10 +85,6 @@ export function EventDetailScreen({
               await initializeGeofencing();
               await AsyncStorage.setItem(ACTIVE_EVENT_KEY, eventId);
               setIsEventActive(true);
-              Alert.alert(
-                'Evento Iniciado',
-                'El seguimiento de checkpoints está activo',
-              );
             } catch (error) {
               console.error('Error starting event:', error);
               Alert.alert('Error', 'No se pudo iniciar el evento');
@@ -113,10 +109,6 @@ export function EventDetailScreen({
               await stopGeofencing();
               await AsyncStorage.removeItem(ACTIVE_EVENT_KEY);
               setIsEventActive(false);
-              Alert.alert(
-                'Evento Detenido',
-                'El seguimiento de checkpoints ha finalizado',
-              );
             } catch (error) {
               console.error('Error stopping event:', error);
               Alert.alert('Error', 'No se pudo detener el evento');
