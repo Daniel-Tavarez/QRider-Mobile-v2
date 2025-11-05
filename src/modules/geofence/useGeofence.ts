@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { geofenceService } from './GeofenceService';
 import { syncManager } from './GeofenceSyncManager';
 import { defineGeofenceTask } from './GeofenceTaskManager';
@@ -142,10 +143,23 @@ export const useGeofence = (eventId: string, userId: string) => {
       updateStatus();
     }, 10000);
 
+    const subscription = AppState.addEventListener('change', async (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        const isActive = await geofenceService.isGeofencingActive();
+        if (isActive) {
+          console.log('App returned to foreground, restarting geofencing...');
+          await geofenceService.stopGeofencing();
+          await geofenceService.registerGeofences(eventId, userId);
+        }
+        updateStatus();
+      }
+    });
+
     return () => {
       clearInterval(interval);
+      subscription.remove();
     };
-  }, [updateStatus]);
+  }, [updateStatus, eventId, userId]);
 
   return {
     status,
