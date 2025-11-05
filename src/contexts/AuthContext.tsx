@@ -96,7 +96,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const signInWithGoogle = async () => {
     try {
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const { idToken } = await GoogleSignin.signIn();
+      const userInfo = await GoogleSignin.signIn();
+      const idToken = userInfo.data?.idToken;
+
+      if (!idToken) {
+        throw new Error('No se pudo obtener el token de Google');
+      }
+
       const googleCredential = auth.GoogleAuthProvider.credential(idToken);
       const result = await auth().signInWithCredential(googleCredential);
 
