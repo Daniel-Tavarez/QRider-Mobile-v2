@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { geofenceService } from '../modules/geofence';
 import { User } from '../types';
@@ -92,9 +93,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await auth().signInWithEmailAndPassword(email, password);
   };
 
-  // En React Native, signInWithGoogle se manejará de manera diferente
   const signInWithGoogle = async () => {
-    throw new Error('Google sign in no está disponible en React Native. Use GoogleSignin.');
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const { idToken } = await GoogleSignin.signIn();
+      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+      const result = await auth().signInWithCredential(googleCredential);
+
+      let userDoc = await getUserDocument(result.user.uid);
+      if (!userDoc) {
+        userDoc = await createUserDocument(
+          result.user.uid,
+          result.user.email!,
+          result.user.displayName || '',
+          result.user.photoURL || undefined
+        );
+      }
+
+      setUserData(userDoc);
+      await AsyncStorage.setItem('user', JSON.stringify(userDoc));
+    } catch (error: any) {
+      console.error('Google Sign-In Error:', error);
+      throw error;
+    }
   };
 
   const logout = async () => {
@@ -116,6 +137,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     console.log('AuthContext: Setting up auth listener');
+
+    GoogleSignin.configure({
+      webClientId: '969099536473-89gcn8vq9dg7t7nqg8s2r6u5p5otqhbl.apps.googleusercontent.com',
+    });
 
     const timeout = setTimeout(() => {
       console.log('AuthContext: Timeout reached, setting loading to false');

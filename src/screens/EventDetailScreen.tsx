@@ -807,7 +807,7 @@ export function EventDetailScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.gray[50],
+    backgroundColor: theme.colors.surface,
   },
   header: {
     flexDirection: 'row',
@@ -815,15 +815,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: theme.colors.primary,
     paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    paddingVertical: theme.spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
   backButton: {
     padding: theme.spacing.sm,
   },
   headerTitle: {
-    fontSize: theme.typography.h4.fontSize,
-    fontWeight: theme.typography.h4.fontWeight,
+    fontSize: 24,
+    fontWeight: 'bold',
     color: theme.colors.white,
+    letterSpacing: 0.5,
   },
   headerRight: {
     width: 40,
@@ -1049,8 +1055,13 @@ const styles = StyleSheet.create({
   eventControlCard: {
     marginBottom: theme.spacing.lg,
     backgroundColor: '#F5F5F5',
-    borderLeftWidth: 4,
-    borderLeftColor: theme.colors.textSecondary,
+    borderLeftWidth: 5,
+    borderLeftColor: theme.colors.gray[400],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
   eventActiveCard: {
     backgroundColor: '#E8F5E9',

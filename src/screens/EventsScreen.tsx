@@ -257,25 +257,38 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.gray[50],
+    backgroundColor: theme.colors.surface,
   },
   header: {
     backgroundColor: theme.colors.primary,
     paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    paddingVertical: theme.spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
   headerTitle: {
-    fontSize: theme.typography.h4.fontSize,
-    fontWeight: theme.typography.h4.fontWeight,
+    fontSize: 28,
+    fontWeight: 'bold',
     color: theme.colors.white,
     textAlign: 'center',
+    letterSpacing: 0.5,
   },
   content: {
     flex: 1,
     padding: theme.spacing.lg,
   },
   eventCard: {
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+    borderLeftWidth: 4,
+    borderLeftColor: theme.colors.primary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   eventHeader: {
     flexDirection: 'row',
@@ -288,10 +301,11 @@ const styles = StyleSheet.create({
     marginRight: theme.spacing.md,
   },
   eventTitle: {
-    fontSize: theme.typography.h4.fontSize,
-    fontWeight: theme.typography.h4.fontWeight,
+    fontSize: 22,
+    fontWeight: 'bold',
     color: theme.colors.text,
     marginBottom: theme.spacing.sm,
+    letterSpacing: 0.3,
   },
   eventMeta: {
     flexDirection: 'row',
@@ -343,9 +357,9 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.xs,
   },
   difficultyBadge: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.borderRadius.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 6,
+    borderRadius: theme.borderRadius.full,
   },
   difficultyText: {
     color: theme.colors.white,
@@ -353,10 +367,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   adminBadge: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.secondary,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 6,
+    borderRadius: theme.borderRadius.full,
   },
   adminText: {
     color: theme.colors.white,

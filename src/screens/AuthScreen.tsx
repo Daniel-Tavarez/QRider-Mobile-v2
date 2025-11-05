@@ -129,65 +129,83 @@ export function AuthScreen() {
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Logo */}
-          <View style={styles.logoContainer}>
-            <View style={styles.logoPlaceholder}>
+          <View style={styles.heroSection}>
+            <View style={styles.logoContainer}>
               <Image
                 source={require('../assets/qrider.png')}
                 style={styles.logo}
                 resizeMode="contain"
               />
             </View>
+            <Text style={styles.heroTitle}>Bienvenido a QRider</Text>
+            <Text style={styles.heroSubtitle}>
+              Tu compañero de aventuras sobre ruedas
+            </Text>
           </View>
 
-          <Card style={styles.formCard}>
-            <Text style={styles.formTitle}>
-              {isSignUp ? 'Crear Cuenta' : 'Iniciar Sesión'}
-            </Text>
+          <View style={styles.formContainer}>
+            <View style={styles.formHeader}>
+              <Text style={styles.formTitle}>
+                {isSignUp ? 'Crear Cuenta' : 'Iniciar Sesión'}
+              </Text>
+              <View style={styles.accentLine} />
+            </View>
 
             {isSignUp && (
-              <TextInput
-                style={styles.input}
-                placeholder="Nombre completo"
-                value={displayName}
-                onChangeText={setDisplayName}
-                autoCapitalize="words"
-                autoComplete="name"
-                placeholderTextColor={theme.colors.gray[500]}
-              />
+              <View style={styles.inputWrapper}>
+                <Icon name="person" size={20} color={theme.colors.gray[500]} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Nombre completo"
+                  value={displayName}
+                  onChangeText={setDisplayName}
+                  autoCapitalize="words"
+                  autoComplete="name"
+                  placeholderTextColor={theme.colors.gray[500]}
+                />
+              </View>
             )}
 
-            <TextInput
-              placeholderTextColor={theme.colors.gray[500]}
-              style={styles.input}
-              placeholder="Correo electrónico"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-            />
-
-            <TextInput
-              placeholderTextColor={theme.colors.gray[500]}
-              style={styles.input}
-              placeholder="Contraseña"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoComplete="password"
-            />
-
-            {isSignUp && (
+            <View style={styles.inputWrapper}>
+              <Icon name="mail" size={20} color={theme.colors.gray[500]} style={styles.inputIcon} />
               <TextInput
                 placeholderTextColor={theme.colors.gray[500]}
                 style={styles.input}
-                placeholder="Confirmar contraseña"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
+                placeholder="Correo electrónico"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+              />
+            </View>
+
+            <View style={styles.inputWrapper}>
+              <Icon name="lock-closed" size={20} color={theme.colors.gray[500]} style={styles.inputIcon} />
+              <TextInput
+                placeholderTextColor={theme.colors.gray[500]}
+                style={styles.input}
+                placeholder="Contraseña"
+                value={password}
+                onChangeText={setPassword}
                 secureTextEntry
                 autoComplete="password"
               />
+            </View>
+
+            {isSignUp && (
+              <View style={styles.inputWrapper}>
+                <Icon name="lock-closed" size={20} color={theme.colors.gray[500]} style={styles.inputIcon} />
+                <TextInput
+                  placeholderTextColor={theme.colors.gray[500]}
+                  style={styles.input}
+                  placeholder="Confirmar contraseña"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                  autoComplete="password"
+                />
+              </View>
             )}
 
             <Button
@@ -197,42 +215,38 @@ export function AuthScreen() {
               style={styles.authButton}
             />
 
-            {/* Google Sign In */}
+            <View style={styles.dividerContainer}>
+              <View style={styles.divider} />
+              <Text style={styles.dividerText}>o continúa con</Text>
+              <View style={styles.divider} />
+            </View>
+
             <TouchableOpacity
               style={styles.googleButton}
               onPress={handleGoogleAuth}
               disabled={loading}
             >
-              <Icon name="logo-google" size={20} color="#4285F4" />
-              <Text style={styles.googleButtonText}>
-                {isSignUp
-                  ? 'Crear cuenta con Google'
-                  : 'Iniciar sesión con Google'}
-              </Text>
+              <Icon name="logo-google" size={22} color="#4285F4" />
+              <Text style={styles.googleButtonText}>Google</Text>
             </TouchableOpacity>
 
             {!isSignUp && (
-              <Button
-                title="¿Olvidaste tu contraseña?"
-                onPress={handleForgotPassword}
-                variant="outline"
-                style={styles.forgotButton}
-              />
+              <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotButton}>
+                <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
+              </TouchableOpacity>
             )}
 
             <View style={styles.switchContainer}>
               <Text style={styles.switchText}>
                 {isSignUp ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?'}
               </Text>
-              <Button
-                title={isSignUp ? 'Iniciar sesión' : 'Crear cuenta'}
-                onPress={() => setIsSignUp(!isSignUp)}
-                variant="outline"
-                size="small"
-                style={styles.switchButton}
-              />
+              <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
+                <Text style={styles.switchLink}>
+                  {isSignUp ? 'Iniciar sesión' : 'Crear cuenta'}
+                </Text>
+              </TouchableOpacity>
             </View>
-          </Card>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -242,85 +256,153 @@ export function AuthScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.gray[50],
+    backgroundColor: theme.colors.backgroundDark,
   },
   keyboardView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+  },
+  heroSection: {
+    alignItems: 'center',
+    paddingTop: theme.spacing.xxl,
+    paddingBottom: theme.spacing.xl,
+  },
+  logoContainer: {
+    width: 120,
+    height: 120,
+    marginBottom: theme.spacing.lg,
   },
   logo: {
     width: '100%',
     height: '100%',
   },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: theme.spacing.lg,
+  heroTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: theme.colors.white,
+    textAlign: 'center',
+    marginBottom: theme.spacing.sm,
+    letterSpacing: 0.5,
   },
-  logoContainer: {
-    alignItems: 'center',
+  heroSubtitle: {
+    fontSize: 16,
+    color: theme.colors.gray[400],
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  formContainer: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.xl,
+    padding: theme.spacing.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  formHeader: {
     marginBottom: theme.spacing.xl,
   },
-  logoPlaceholder: {
-    width: 180,
-    height: 150,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: -theme.spacing.md,
-  },
-  formCard: {
-    marginBottom: theme.spacing.lg,
-  },
   formTitle: {
-    fontSize: theme.typography.h3.fontSize,
-    fontWeight: theme.typography.h3.fontWeight,
+    fontSize: 28,
+    fontWeight: 'bold',
     color: theme.colors.text,
-    textAlign: 'center',
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
+  },
+  accentLine: {
+    width: 60,
+    height: 4,
+    backgroundColor: theme.colors.primary,
+    borderRadius: 2,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    marginBottom: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  inputIcon: {
+    marginRight: theme.spacing.sm,
   },
   input: {
-    borderWidth: 1,
-    borderColor: theme.colors.gray[300],
-    borderRadius: theme.borderRadius.md,
+    flex: 1,
     padding: theme.spacing.md,
     fontSize: theme.typography.body.fontSize,
-    marginBottom: theme.spacing.md,
-    backgroundColor: theme.colors.white,
     color: theme.colors.text,
   },
   authButton: {
     marginTop: theme.spacing.md,
     marginBottom: theme.spacing.lg,
+    backgroundColor: theme.colors.primary,
+    height: 56,
+    borderRadius: theme.borderRadius.lg,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: theme.colors.gray[300],
+  },
+  dividerText: {
+    marginHorizontal: theme.spacing.md,
+    fontSize: theme.typography.caption.fontSize,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
   },
   googleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: theme.colors.white,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: theme.colors.gray[300],
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
+    paddingVertical: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    height: 56,
   },
   googleButtonText: {
-    marginLeft: theme.spacing.sm,
+    marginLeft: theme.spacing.md,
     fontSize: theme.typography.body.fontSize,
     color: theme.colors.text,
     fontWeight: '600',
   },
   forgotButton: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
     marginBottom: theme.spacing.lg,
   },
+  forgotText: {
+    fontSize: theme.typography.caption.fontSize,
+    color: theme.colors.primary,
+    fontWeight: '600',
+  },
   switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    marginTop: theme.spacing.md,
   },
   switchText: {
-    fontSize: theme.typography.caption.fontSize,
+    fontSize: theme.typography.body.fontSize,
     color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.sm,
+    marginRight: theme.spacing.xs,
   },
-  switchButton: {
-    minHeight: 36,
+  switchLink: {
+    fontSize: theme.typography.body.fontSize,
+    color: theme.colors.primary,
+    fontWeight: '700',
   },
 });
