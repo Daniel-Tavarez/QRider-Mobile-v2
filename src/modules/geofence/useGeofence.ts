@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { geofenceService } from './GeofenceService';
 import { syncManager } from './GeofenceSyncManager';
 import { defineGeofenceTask } from './GeofenceTaskManager';
@@ -70,7 +70,7 @@ export const useGeofence = (eventId: string, userId: string) => {
         throw new Error('No checkpoints found for this event');
       }
 
-      const registered = await geofenceService.registerGeofences(eventId);
+      const registered = await geofenceService.registerGeofences(eventId, userId);
 
       if (!registered) {
         throw new Error('Failed to register geofences');
@@ -122,7 +122,7 @@ export const useGeofence = (eventId: string, userId: string) => {
 
         if (isActive) {
           await geofenceService.stopGeofencing();
-          await geofenceService.registerGeofences(eventId);
+          await geofenceService.registerGeofences(eventId, userId);
         }
       }
 

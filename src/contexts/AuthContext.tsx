@@ -1,8 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
-import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { geofenceService } from '../modules/geofence';
 import { User } from '../types';
 
 interface AuthContextType {
@@ -34,7 +35,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
   const [userData, setUserData] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-
+  console.log(user)
   const generateSlug = (): string => {
     return Math.random().toString(36).substring(2, 10);
   };
@@ -97,6 +98,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = async () => {
+    try {
+      // Ensure any active event/geofence is stopped when logging out
+      await geofenceService.stopGeofencing();
+      await AsyncStorage.clear();
+    } catch (e) {
+      // non-fatal
+      console.warn('Logout: stopGeofencing failed or not active');
+    }
     await auth().signOut();
     await AsyncStorage.removeItem('user');
   };
@@ -135,8 +144,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
           await AsyncStorage.setItem('user', JSON.stringify(userDoc));
         } catch (error) {
           console.error('Error fetching user data:', error);
+          // Fallback offline: intenta cargar desde caché local
+          try {
+            const cached = await AsyncStorage.getItem('user');
+            if (cached) {
+              const parsed = JSON.parse(cached) as User;
+              setUserData(parsed);
+            }
+          } catch {}
         }
       } else {
+        // On any auth loss, stop geofencing and clear user cache
+        try { await geofenceService.stopGeofencing(); } catch {}
         setUserData(null);
         await AsyncStorage.removeItem('user');
       }

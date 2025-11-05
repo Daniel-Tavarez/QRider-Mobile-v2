@@ -5,6 +5,16 @@ import { GeofenceEvent } from './types';
 
 const PENDING_EVENTS_KEY = 'geofence_pending_events';
 const ALL_EVENTS_KEY_PREFIX = 'geofence_events_';
+const PROGRESS_KEY_PREFIX = 'checkpoint_progress_'; // `${PROGRESS_KEY_PREFIX}${eventId}_${userId}`
+
+type LocalCheckpointProgress = {
+  checkpointId: string;
+  uid: string;
+  eventId: string;
+  timestamp: string; // ISO
+  latitude: number;
+  longitude: number;
+};
 
 export class GeofenceSyncManager {
   private static instance: GeofenceSyncManager;
@@ -48,11 +58,122 @@ export class GeofenceSyncManager {
       await AsyncStorage.setItem(eventKey, JSON.stringify(allEvents));
 
       console.log(`Event saved locally: ${event.eventType} at ${event.checkpointName}`);
+
+      // If this is an ENTER, also mark local checkpoint progress
+      if (event.eventType === 'ENTER') {
+        await this.saveCheckpointProgressLocal({
+          checkpointId: event.checkpointId,
+          uid: event.userId,
+          eventId: event.eventId,
+          timestamp: event.timestamp,
+          latitude: event.latitude,
+          longitude: event.longitude,
+        });
+      }
       return true;
     } catch (error) {
       console.error('Error saving event locally:', error);
       return false;
     }
+  }
+
+  private async saveCheckpointProgressLocal(progress: LocalCheckpointProgress): Promise<void> {
+    try {
+      const key = `${PROGRESS_KEY_PREFIX}${progress.eventId}_${progress.uid}`;
+      const existingJson = await AsyncStorage.getItem(key);
+      const list: LocalCheckpointProgress[] = existingJson ? JSON.parse(existingJson) : [];
+
+      // Deduplicate by checkpointId (keep earliest)
+      const already = list.find(p => p.checkpointId === progress.checkpointId);
+      if (!already) {
+        list.push(progress);
+        await AsyncStorage.setItem(key, JSON.stringify(list));
+      }
+    } catch (error) {
+      console.error('Error saving local checkpoint progress:', error);
+    }
+  }
+
+  async getLocalCheckpointProgress(eventId: string, uid: string): Promise<LocalCheckpointProgress[]> {
+    try {
+      const key = `${PROGRESS_KEY_PREFIX}${eventId}_${uid}`;
+      const json = await AsyncStorage.getItem(key);
+      return json ? JSON.parse(json) : [];
+    } catch (error) {
+      console.error('Error getting local checkpoint progress:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Remove local progress and local events for checkpoints that are no longer valid
+   * for a given event. Use when remote checkpoints have changed and should override local.
+   */
+  async pruneLocalDataForEvent(
+    eventId: string,
+    uid: string,
+    validCheckpointIds: string[]
+  ): Promise<{ prunedProgress: number; prunedPending: number; prunedAllEvents: number }> {
+    let prunedProgress = 0;
+    let prunedPending = 0;
+    let prunedAllEvents = 0;
+
+    try {
+      // Progress
+      const progressKey = `${PROGRESS_KEY_PREFIX}${eventId}_${uid}`;
+      const progressJson = await AsyncStorage.getItem(progressKey);
+      if (progressJson) {
+        const list: LocalCheckpointProgress[] = JSON.parse(progressJson);
+        const filtered = list.filter(p => validCheckpointIds.includes(p.checkpointId));
+        prunedProgress = list.length - filtered.length;
+        if (prunedProgress > 0) {
+          await AsyncStorage.setItem(progressKey, JSON.stringify(filtered));
+        }
+      }
+    } catch (error) {
+      console.error('Error pruning local checkpoint progress:', error);
+    }
+
+    try {
+      // Pending events (unsynced)
+      const pendingJson = await AsyncStorage.getItem(PENDING_EVENTS_KEY);
+      if (pendingJson) {
+        const pending: GeofenceEvent[] = JSON.parse(pendingJson);
+        const filtered = pending.filter(
+          e => e.eventId !== eventId || validCheckpointIds.includes(e.checkpointId)
+        );
+        prunedPending = pending.length - filtered.length;
+        if (prunedPending > 0) {
+          await AsyncStorage.setItem(PENDING_EVENTS_KEY, JSON.stringify(filtered));
+        }
+      }
+    } catch (error) {
+      console.error('Error pruning pending geofence events:', error);
+    }
+
+    try {
+      // All events cache (for UI)
+      const allKey = `${ALL_EVENTS_KEY_PREFIX}${eventId}`;
+      const allJson = await AsyncStorage.getItem(allKey);
+      if (allJson) {
+        const all: GeofenceEvent[] = JSON.parse(allJson);
+        const filtered = all.filter(e => validCheckpointIds.includes(e.checkpointId));
+        prunedAllEvents = all.length - filtered.length;
+        if (prunedAllEvents > 0) {
+          await AsyncStorage.setItem(allKey, JSON.stringify(filtered));
+        }
+      }
+    } catch (error) {
+      console.error('Error pruning all events cache:', error);
+    }
+
+    if (prunedProgress + prunedPending + prunedAllEvents > 0) {
+      console.log(
+        `Pruned local data for event ${eventId}: progress=${prunedProgress}, pending=${prunedPending}, all=${prunedAllEvents}`
+      );
+    }
+
+    return { prunedProgress, prunedPending, prunedAllEvents };
   }
 
   async getPendingEvents(): Promise<GeofenceEvent[]> {
@@ -126,6 +247,27 @@ export class GeofenceSyncManager {
               timestamp: event.timestamp,
               synced_at: firestore.FieldValue.serverTimestamp(),
             });
+
+          // Upsert checkpointProgress on ENTER to reflect completion
+          if (event.eventType === 'ENTER') {
+            const docId = `${event.eventId}_${event.userId}_${event.checkpointId}`;
+            const docRef = firestore().collection('checkpointProgress').doc(docId);
+            await docRef.set(
+              {
+                checkpointId: event.checkpointId,
+                uid: event.userId,
+                event_id: event.eventId,
+                latitude: event.latitude,
+                longitude: event.longitude,
+                // preserve event timestamp for progress
+                timestamp: (firestore as any).Timestamp?.fromDate
+                  ? (firestore as any).Timestamp.fromDate(new Date(event.timestamp))
+                  : event.timestamp,
+                updated_at: firestore.FieldValue.serverTimestamp(),
+              },
+              { merge: true }
+            );
+          }
 
           syncedEventIds.push(event.id);
           console.log(`Event synced successfully: ${event.id}`);

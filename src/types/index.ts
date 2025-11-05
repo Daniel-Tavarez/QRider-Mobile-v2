@@ -21,6 +21,62 @@ export interface EmergencyContact {
   email?: string;
 }
 
+export interface InsuranceInfo {
+  provider: string;
+  planName?: string;
+  policyNumber?: string;
+  isPrimary?: boolean;
+  notes?: string;
+}
+
+export interface AddressInfo {
+  country?: string;
+  state?: string;
+  city?: string;
+}
+
+export interface PreferencesInfo {
+  showBloodTypePublic?: boolean;
+  showAeroAmbulance?: boolean;
+  showBikeInfo?: boolean;
+  showAddress?: boolean;
+  showMedicalNotes?: boolean;
+  showInsurances?: boolean;
+  showMedications?: boolean;
+  showPreferredCare?: boolean;
+  showDOB?: boolean;
+  showAllergies?: boolean;
+}
+
+export interface AeroAmbulanceInfo {
+  enrolled?: boolean;
+  provider?: string;
+  memberId?: string;
+  phone?: string;
+  notes?: string;
+}
+
+export interface PreferredCareInfo {
+  clinicName?: string;
+  doctorName?: string;
+  doctorPhone?: string;
+  city?: string;
+}
+
+export interface BikeInsuranceInfo {
+  policy?: string;
+  expiry?: string; // ISO
+  company?: string;
+}
+
+export interface BikeInfo {
+  brand?: string;
+  model?: string;
+  color?: string;
+  plate?: string;
+  insurance?: BikeInsuranceInfo;
+}
+
 export interface Profile {
   uid: string;
   fullName: string;
@@ -35,6 +91,13 @@ export interface Profile {
   secondaryPhone?: string;
   contacts: EmergencyContact[];
   updatedAt: FirebaseFirestoreTypes.Timestamp;
+  // Extended fields
+  insurances?: InsuranceInfo[];
+  address?: AddressInfo;
+  preferences?: PreferencesInfo;
+  aeroAmbulance?: AeroAmbulanceInfo;
+  preferredCare?: PreferredCareInfo;
+  bike?: BikeInfo;
 }
 
 export interface Event {
@@ -90,6 +153,13 @@ export interface CheckpointProgress {
   timestamp: FirebaseFirestoreTypes.Timestamp;
   latitude: number;
   longitude: number;
+  // Optional structured fields for entry/exit
+  entryTimestamp?: FirebaseFirestoreTypes.Timestamp;
+  exitTimestamp?: FirebaseFirestoreTypes.Timestamp;
+  entryLatitude?: number;
+  entryLongitude?: number;
+  exitLatitude?: number;
+  exitLongitude?: number;
 }
 
 export type RootStackParamList = {

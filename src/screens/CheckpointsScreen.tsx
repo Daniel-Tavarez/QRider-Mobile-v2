@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 import firestore from '@react-native-firebase/firestore';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
@@ -15,15 +16,23 @@ import { Card } from '../components/common/Card';
 import { Icon } from '../components/common/Icon';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { theme } from '../constants/theme';
-import { Checkpoint, CheckpointProgress, RootStackParamList } from '../types';
+import { geofenceService, syncManager } from '../modules/geofence';
+import { Checkpoint as GeofenceCheckpoint } from '../modules/geofence/types';
+import { CheckpointProgress, RootStackParamList } from '../types';
 
-type CheckpointsScreenProps = NativeStackScreenProps<RootStackParamList, 'Checkpoints'>;
+type CheckpointsScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  'Checkpoints'
+>;
 
 const ACTIVE_EVENT_KEY = 'active_event_id';
 
-export function CheckpointsScreen({ route, navigation }: CheckpointsScreenProps) {
+export function CheckpointsScreen({
+  route,
+  navigation,
+}: CheckpointsScreenProps) {
   const { eventId, userId } = route.params;
-  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [checkpoints, setCheckpoints] = useState<GeofenceCheckpoint[]>([]);
   const [progress, setProgress] = useState<CheckpointProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,35 +54,113 @@ export function CheckpointsScreen({ route, navigation }: CheckpointsScreenProps)
 
   const loadData = async () => {
     try {
-      const checkpointsSnap = await firestore()
+      // Determine connectivity
+      const state = await NetInfo.fetch();
+      const isOnline =
+        state.isConnected === true && state.isInternetReachable === true;
+
+      // Load checkpoints - online from Firestore, otherwise from local cache
+      let checkpointsData: GeofenceCheckpoint[] = [];
+      if (isOnline) {
+        const checkpointsSnap = await firestore()
         .collection('checkpoints')
         .where('event_id', '==', eventId)
+        .where('active', '==', true)
         .get();
-
-      let checkpointsData = checkpointsSnap.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Checkpoint[];
-
-      checkpointsData = checkpointsData.sort((a, b) => a.sequence - b.sequence);
-
+        
+        checkpointsData = checkpointsSnap.docs.map(doc => ({
+          id: doc.id,
+          ...(doc.data() as any),
+        })) as unknown as GeofenceCheckpoint[];
+        
+        // Persist remote as source of truth
+        try {
+          await geofenceService.saveCheckpointsLocally(eventId, checkpointsData);
+          const validIds = checkpointsData.map(c => c.id);
+          await syncManager.pruneLocalDataForEvent(eventId, userId, validIds);
+        } catch {}
+      } else {
+        checkpointsData = await geofenceService.getLocalCheckpoints(eventId);
+      }
+      
+      checkpointsData = (checkpointsData || []).sort(
+        (a, b) => (a.sequence || 0) - (b.sequence || 0),
+      );
       setCheckpoints(checkpointsData);
-      console.log('Loaded checkpoints:', checkpointsData);
+      console.log('Loaded checkpoints:', checkpointsData?.length || 0);
+      const validIdSet = new Set(checkpointsData.map(c => c.id));
 
-      const progressSnap = await firestore()
+      // Load progress
+      let remoteProgress: CheckpointProgress[] = [];
+      if (isOnline) {
+        const progressSnap = await firestore()
         .collection('checkpointProgress')
         .where('event_id', '==', eventId)
         .where('uid', '==', userId)
         .get();
+        remoteProgress = progressSnap.docs.map(doc => ({
+          id: doc.id,
+          ...(doc.data() as any),
+        })) as unknown as CheckpointProgress[];
+        // keep only progress that matches current checkpoints
+        remoteProgress = remoteProgress.filter(rp => validIdSet.has((rp as any).checkpointId));
+      }
+      
+      // Always include local progress so UI reflects offline ENTERs immediately
+      const localProgress = await syncManager.getLocalCheckpointProgress(
+        eventId,
+        userId,
+      );
 
-      const progressData = progressSnap.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as CheckpointProgress[];
-      setProgress(progressData);
+      // Merge by checkpointId, prefer remote
+      const byCheckpoint = new Map<string, any>();
+      for (const rp of remoteProgress) {
+        byCheckpoint.set((rp as any).checkpointId, rp);
+      }
+      for (const lp of localProgress) {
+        if (!byCheckpoint.has(lp.checkpointId) && validIdSet.has(lp.checkpointId)) {
+          byCheckpoint.set(lp.checkpointId, {
+            id: `${eventId}_${userId}_${lp.checkpointId}`,
+            checkpointId: lp.checkpointId,
+            uid: lp.uid,
+            event_id: lp.eventId,
+            timestamp: lp.timestamp,
+            latitude: lp.latitude,
+            longitude: lp.longitude,
+          } as any);
+        }
+      }
 
+      setProgress(Array.from(byCheckpoint.values()) as any);
     } catch (error) {
       console.error('Error loading checkpoints:', error);
+      // Fallback to purely local if Firestore calls fail
+      try {
+        const checkpointsData = await geofenceService.getLocalCheckpoints(
+          eventId,
+        );
+        setCheckpoints(
+          (checkpointsData || []).sort(
+            (a, b) => (a.sequence || 0) - (b.sequence || 0),
+          ),
+        );
+      } catch {}
+      try {
+        const localProgress = await syncManager.getLocalCheckpointProgress(
+          eventId,
+          userId,
+        );
+        const fallback = localProgress.map(lp => ({
+          id: `${eventId}_${userId}_${lp.checkpointId}`,
+          checkpointId: lp.checkpointId,
+          uid: lp.uid,
+          event_id: lp.eventId,
+          timestamp: lp.timestamp,
+          latitude: lp.latitude,
+          longitude: lp.longitude,
+        })) as any;
+        setProgress(fallback);
+      } catch {}
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -89,17 +176,19 @@ export function CheckpointsScreen({ route, navigation }: CheckpointsScreenProps)
     return progress.some(p => p.checkpointId === checkpointId);
   };
 
-  const getCheckpointProgress = (checkpointId: string): CheckpointProgress | undefined => {
+  const getCheckpointProgress = (
+    checkpointId: string,
+  ): CheckpointProgress | undefined => {
     return progress.find(p => p.checkpointId === checkpointId);
   };
 
-  const formatTimestamp = (timestamp: Date): string => {
-    const date = new Date(timestamp);
+  const formatTimestamp = (timestamp: any): string => {
+    const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
     return date.toLocaleString('es-ES', {
       hour: '2-digit',
       minute: '2-digit',
       day: '2-digit',
-      month: 'short'
+      month: 'short',
     });
   };
 
@@ -109,12 +198,16 @@ export function CheckpointsScreen({ route, navigation }: CheckpointsScreenProps)
 
   const completedCount = progress.length;
   const totalCount = checkpoints.length;
-  const progressPercentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+  const progressPercentage =
+    totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <Icon name="arrow-back" size={24} color={theme.colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Progreso de Ruta</Text>
@@ -131,128 +224,173 @@ export function CheckpointsScreen({ route, navigation }: CheckpointsScreenProps)
           <View style={styles.activeBanner}>
             <View style={styles.activeBannerContent}>
               <View style={styles.pulseDot} />
-              <Text style={styles.activeBannerText}>Evento Activo - Rastreando tu ubicación</Text>
+              <Text style={styles.activeBannerText}>
+                Evento Activo - Rastreando tu ubicación
+              </Text>
             </View>
-            <Icon name="radio-button-on" size={20} color={theme.colors.white} />
           </View>
         )}
 
-        <Card style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Progreso General</Text>
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${progressPercentage}%` }]} />
-            </View>
-            <Text style={styles.progressText}>
-              {completedCount} de {totalCount} checkpoints completados
-            </Text>
-          </View>
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{completedCount}</Text>
-              <Text style={styles.statLabel}>Completados</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{totalCount - completedCount}</Text>
-              <Text style={styles.statLabel}>Pendientes</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statNumber}>{Math.round(progressPercentage)}%</Text>
-              <Text style={styles.statLabel}>Progreso</Text>
-            </View>
-          </View>
-        </Card>
-
         {checkpoints.length > 0 ? (
-          <Card style={styles.checkpointsCard}>
-            <Text style={styles.sectionTitle}>Checkpoints de la Ruta</Text>
+          <>
+            <Card style={styles.summaryCard}>
+              <Text style={styles.summaryTitle}>Progreso General</Text>
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBar}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      { width: `${progressPercentage}%` },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.progressText}>
+                  {completedCount} de {totalCount} checkpoints completados
+                </Text>
+              </View>
+              <View style={styles.statsRow}>
+                <View style={styles.statBox}>
+                  <Text style={styles.statNumber}>{completedCount}</Text>
+                  <Text style={styles.statLabel}>Completados</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statNumber}>
+                    {totalCount - completedCount}
+                  </Text>
+                  <Text style={styles.statLabel}>Pendientes</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statNumber}>
+                    {Math.round(progressPercentage)}%
+                  </Text>
+                  <Text style={styles.statLabel}>Progreso</Text>
+                </View>
+              </View>
+            </Card>
 
-            <View style={styles.stepper}>
-              {checkpoints.map((checkpoint, index) => {
-                const isCompleted = isCheckpointCompleted(checkpoint.id);
-                const checkpointProgress = getCheckpointProgress(checkpoint.id);
-                const isLast = index === checkpoints.length - 1;
+            <Card style={styles.checkpointsCard}>
+              <Text style={styles.sectionTitle}>Checkpoints de la Ruta</Text>
 
-                return (
-                  <View key={checkpoint.id} style={styles.stepContainer}>
-                    <View style={styles.stepLeft}>
-                      <View style={[
-                        styles.stepCircle,
-                        isCompleted && styles.stepCircleCompleted
-                      ]}>
-                        {isCompleted ? (
-                          <Icon name="checkmark-circle" size={32} color={theme.colors.success} />
-                        ) : (
-                          <Text style={[
-                            styles.stepNumber,
-                            isCompleted && styles.stepNumberCompleted
-                          ]}>
-                            {checkpoint.sequence + 1}
-                          </Text>
+              <View style={styles.stepper}>
+                {checkpoints.map((checkpoint, index) => {
+                  const isCompleted = isCheckpointCompleted(checkpoint.id);
+                  const checkpointProgress = getCheckpointProgress(
+                    checkpoint.id,
+                  );
+                  const isLast = index === checkpoints.length - 1;
+
+                  return (
+                    <View key={checkpoint.id} style={styles.stepContainer}>
+                      <View style={styles.stepLeft}>
+                        <View
+                          style={[
+                            styles.stepCircle,
+                            isCompleted && styles.stepCircleCompleted,
+                          ]}
+                        >
+                          {isCompleted ? (
+                            <Icon
+                              name="checkmark-circle"
+                              size={32}
+                              color={theme.colors.success}
+                            />
+                          ) : (
+                            <Text
+                              style={[
+                                styles.stepNumber,
+                                isCompleted && styles.stepNumberCompleted,
+                              ]}
+                            >
+                              {checkpoint.sequence + 1}
+                            </Text>
+                          )}
+                        </View>
+                        {!isLast && (
+                          <View
+                            style={[
+                              styles.stepLine,
+                              isCompleted && styles.stepLineCompleted,
+                            ]}
+                          />
                         )}
                       </View>
-                      {!isLast && (
-                        <View style={[
-                          styles.stepLine,
-                          isCompleted && styles.stepLineCompleted
-                        ]} />
-                      )}
-                    </View>
 
-                    <View style={[
-                      styles.stepContent,
-                      !isLast && styles.stepContentWithLine
-                    ]}>
-                      <View style={[
-                        styles.stepCard,
-                        isCompleted && styles.stepCardCompleted
-                      ]}>
-                        <View style={styles.stepHeader}>
-                          <Text style={[
-                            styles.stepTitle,
-                            isCompleted && styles.stepTitleCompleted
-                          ]}>
-                            {checkpoint.name}
-                          </Text>
-                          {isCompleted && (
-                            <View style={styles.completedBadge}>
-                              <Text style={styles.completedText}>Completado</Text>
-                            </View>
-                          )}
-                        </View>
-
-                        <View style={styles.stepDetails}>
-                          <View style={styles.stepDetailItem}>
-                            <Icon
-                              name="location"
-                              size={16}
-                              color={isCompleted ? theme.colors.success : theme.colors.textSecondary}
-                            />
-                            <Text style={styles.stepDetailText}>
-                              {checkpoint.latitude.toFixed(6)}, {checkpoint.longitude.toFixed(6)}
+                      <View
+                        style={[
+                          styles.stepContent,
+                          !isLast && styles.stepContentWithLine,
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.stepCard,
+                            isCompleted && styles.stepCardCompleted,
+                          ]}
+                        >
+                          <View style={styles.stepHeader}>
+                            <Text
+                              style={[
+                                styles.stepTitle,
+                                isCompleted && styles.stepTitleCompleted,
+                              ]}
+                            >
+                              {checkpoint.name}
                             </Text>
+                            {isCompleted && (
+                              <View style={styles.completedBadge}>
+                                <Text style={styles.completedText}>
+                                  Completado
+                                </Text>
+                              </View>
+                            )}
                           </View>
 
-                          {checkpointProgress && (
+                          <View style={styles.stepDetails}>
                             <View style={styles.stepDetailItem}>
                               <Icon
-                                name="calendar"
+                                name="location"
                                 size={16}
-                                color={theme.colors.success}
+                                color={
+                                  isCompleted
+                                    ? theme.colors.success
+                                    : theme.colors.textSecondary
+                                }
                               />
-                              <Text style={[styles.stepDetailText, styles.completedTime]}>
-                                Cruzado: {formatTimestamp(checkpointProgress.timestamp.toDate())}
+                              <Text style={styles.stepDetailText}>
+                                {checkpoint.latitude.toFixed(6)},{' '}
+                                {checkpoint.longitude.toFixed(6)}
                               </Text>
                             </View>
-                          )}
+
+                            {checkpointProgress && (
+                              <View style={styles.stepDetailItem}>
+                                <Icon
+                                  name="calendar"
+                                  size={16}
+                                  color={theme.colors.success}
+                                />
+                                <Text
+                                  style={[
+                                    styles.stepDetailText,
+                                    styles.completedTime,
+                                  ]}
+                                >
+                                  Cruzado:{' '}
+                                  {formatTimestamp(
+                                    (checkpointProgress as any).timestamp,
+                                  )}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
                         </View>
                       </View>
                     </View>
-                  </View>
-                );
-              })}
-            </View>
-          </Card>
+                  );
+                })}
+              </View>
+            </Card>
+          </>
         ) : (
           <Card style={styles.emptyCard}>
             <Icon name="location" size={64} color={theme.colors.gray[400]} />
@@ -311,7 +449,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   activeBannerText: {
-    fontSize: theme.typography.body.fontSize,
+    fontSize: theme.typography.caption.fontSize,
     fontWeight: '600',
     color: theme.colors.white,
   },

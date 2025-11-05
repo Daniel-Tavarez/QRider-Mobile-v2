@@ -1,7 +1,7 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import firestore from '@react-native-firebase/firestore';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   RefreshControl,
@@ -11,21 +11,24 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Button } from "../components/common/Button";
-import { Card } from "../components/common/Card";
-import { Icon } from "../components/common/Icon";
-import { LoadingSpinner } from "../components/common/LoadingSpinner";
-import { theme } from "../constants/theme";
-import { useAuth } from "../contexts/AuthContext";
-import { resetCompletedCheckpoints } from "../modules/geofence/GeofenceTaskManager";
-import { useGeofence } from "../modules/geofence/useGeofence";
-import { Event, EventRegistration, RootStackParamList } from "../types";
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Button } from '../components/common/Button';
+import { Card } from '../components/common/Card';
+import { Icon } from '../components/common/Icon';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { theme } from '../constants/theme';
+import { useAuth } from '../contexts/AuthContext';
+import { resetCompletedCheckpoints } from '../modules/geofence/GeofenceTaskManager';
+import { useGeofence } from '../modules/geofence/useGeofence';
+import { Event, EventRegistration, RootStackParamList } from '../types';
 
-type EventDetailScreenProps = NativeStackScreenProps<RootStackParamList, 'EventDetail'>;
+type EventDetailScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  'EventDetail'
+>;
 
-const ACTIVE_EVENT_KEY = "active_event_id";
+const ACTIVE_EVENT_KEY = 'active_event_id';
 
 export function EventDetailScreen({
   route,
@@ -35,12 +38,12 @@ export function EventDetailScreen({
   const { user, userData } = useAuth();
   const [event, setEvent] = useState<Event | null>(null);
   const [registration, setRegistration] = useState<EventRegistration | null>(
-    null
+    null,
   );
   const [participants, setParticipants] = useState<EventRegistration[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [inviteCode, setInviteCode] = useState("");
+  const [inviteCode, setInviteCode] = useState('');
   const [showInviteInput, setShowInviteInput] = useState(false);
   const [isEventActive, setIsEventActive] = useState(false);
 
@@ -49,7 +52,7 @@ export function EventDetailScreen({
     initializeGeofencing,
     stopGeofencing,
     loading: geofenceLoading,
-  } = useGeofence(eventId, user?.uid || "");
+  } = useGeofence(eventId, user?.uid || '');
 
   useEffect(() => {
     loadEventData();
@@ -61,7 +64,7 @@ export function EventDetailScreen({
       const activeEventId = await AsyncStorage.getItem(ACTIVE_EVENT_KEY);
       setIsEventActive(activeEventId === eventId);
     } catch (error) {
-      console.error("Error checking active event:", error);
+      console.error('Error checking active event:', error);
     }
   };
 
@@ -69,12 +72,12 @@ export function EventDetailScreen({
     if (!user) return;
 
     Alert.alert(
-      "Iniciar Evento",
-      "¿Deseas iniciar el seguimiento de checkpoints? Tu ubicación será monitoreada durante el evento.",
+      'Iniciar Evento',
+      '¿Deseas iniciar el seguimiento de checkpoints? Tu ubicación será monitoreada durante el evento.',
       [
-        { text: "Cancelar", style: "cancel" },
+        { text: 'Cancelar', style: 'cancel' },
         {
-          text: "Iniciar",
+          text: 'Iniciar',
           onPress: async () => {
             try {
               await resetCompletedCheckpoints(eventId);
@@ -82,44 +85,44 @@ export function EventDetailScreen({
               await AsyncStorage.setItem(ACTIVE_EVENT_KEY, eventId);
               setIsEventActive(true);
               Alert.alert(
-                "Evento Iniciado",
-                "El seguimiento de checkpoints está activo"
+                'Evento Iniciado',
+                'El seguimiento de checkpoints está activo',
               );
             } catch (error) {
-              console.error("Error starting event:", error);
-              Alert.alert("Error", "No se pudo iniciar el evento");
+              console.error('Error starting event:', error);
+              Alert.alert('Error', 'No se pudo iniciar el evento');
             }
           },
         },
-      ]
+      ],
     );
   };
 
   const handleStopEvent = async () => {
     Alert.alert(
-      "Detener Evento",
-      "¿Deseas detener el seguimiento de checkpoints?",
+      'Detener Evento',
+      '¿Deseas detener el seguimiento de checkpoints?',
       [
-        { text: "Cancelar", style: "cancel" },
+        { text: 'Cancelar', style: 'cancel' },
         {
-          text: "Detener",
-          style: "destructive",
+          text: 'Detener',
+          style: 'destructive',
           onPress: async () => {
             try {
               await stopGeofencing();
               await AsyncStorage.removeItem(ACTIVE_EVENT_KEY);
               setIsEventActive(false);
               Alert.alert(
-                "Evento Detenido",
-                "El seguimiento de checkpoints ha finalizado"
+                'Evento Detenido',
+                'El seguimiento de checkpoints ha finalizado',
               );
             } catch (error) {
-              console.error("Error stopping event:", error);
-              Alert.alert("Error", "No se pudo detener el evento");
+              console.error('Error stopping event:', error);
+              Alert.alert('Error', 'No se pudo detener el evento');
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -131,9 +134,9 @@ export function EventDetailScreen({
         .collection('events')
         .doc(eventId)
         .get();
-        
-      if (!eventDoc.exists) {
-        Alert.alert("Error", "Evento no encontrado");
+
+      if (!eventDoc.exists()) {
+        Alert.alert('Error', 'Evento no encontrado');
         navigation.goBack();
         return;
       }
@@ -143,25 +146,25 @@ export function EventDetailScreen({
 
       const registrationSnap = await firestore()
         .collection('eventRegistrations')
-        .where("eventId", "==", eventId)
-        .where("uid", "==", user.uid)
+        .where('eventId', '==', eventId)
+        .where('uid', '==', user.uid)
         .get();
-        
+
       if (!registrationSnap.empty) {
         setRegistration(registrationSnap.docs[0].data() as EventRegistration);
       }
 
       const participantsSnap = await firestore()
         .collection('eventRegistrations')
-        .where("eventId", "==", eventId)
+        .where('eventId', '==', eventId)
         .get();
-        
+
       setParticipants(
-        participantsSnap.docs.map((doc) => doc.data() as EventRegistration)
+        participantsSnap.docs.map(doc => doc.data() as EventRegistration),
       );
     } catch (error) {
-      console.error("Error loading event data:", error);
-      Alert.alert("Error", "No se pudo cargar la información del evento");
+      console.error('Error loading event data:', error);
+      Alert.alert('Error', 'No se pudo cargar la información del evento');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -175,18 +178,18 @@ export function EventDetailScreen({
 
   const handleJoinWithCode = async () => {
     if (!event || !user || !inviteCode) {
-      Alert.alert("Error", "Ingresa el código de invitación");
+      Alert.alert('Error', 'Ingresa el código de invitación');
       return;
     }
 
     if (inviteCode.toUpperCase() !== event.inviteCode) {
-      Alert.alert("Código incorrecto", "El código de invitación no es válido");
+      Alert.alert('Código incorrecto', 'El código de invitación no es válido');
       return;
     }
 
     await handleJoinEvent();
     setShowInviteInput(false);
-    setInviteCode("");
+    setInviteCode('');
   };
 
   const handleJoinEvent = async () => {
@@ -195,12 +198,12 @@ export function EventDetailScreen({
     try {
       if (event.capacity) {
         const goingCount = participants.filter(
-          (p) => p.status === "going"
+          p => p.status === 'going',
         ).length;
         if (goingCount >= event.capacity) {
           Alert.alert(
-            "Evento lleno",
-            "Este evento ha alcanzado su capacidad máxima"
+            'Evento lleno',
+            'Este evento ha alcanzado su capacidad máxima',
           );
           return;
         }
@@ -209,31 +212,29 @@ export function EventDetailScreen({
       const registrationData = {
         eventId,
         uid: user.uid,
-        status: "maybe" as const,
+        status: 'maybe' as const,
         consentEmergencyShare: false,
         createdAt: firestore.FieldValue.serverTimestamp(),
         updatedAt: firestore.FieldValue.serverTimestamp(),
       };
 
-      await firestore()
-        .collection('eventRegistrations')
-        .add(registrationData);
+      await firestore().collection('eventRegistrations').add(registrationData);
       await loadEventData();
-      Alert.alert("¡Te has unido!", "Ahora puedes confirmar tu asistencia");
+      Alert.alert('¡Te has unido!', 'Ahora puedes confirmar tu asistencia');
     } catch (error) {
-      console.error("Error joining event:", error);
-      Alert.alert("Error", "No se pudo unir al evento");
+      console.error('Error joining event:', error);
+      Alert.alert('Error', 'No se pudo unir al evento');
     }
   };
 
-  const handleUpdateStatus = async (status: "going" | "maybe" | "notgoing") => {
+  const handleUpdateStatus = async (status: 'going' | 'maybe' | 'notgoing') => {
     if (!registration || !user) return;
 
     try {
       const registrationSnap = await firestore()
         .collection('eventRegistrations')
-        .where("eventId", "==", eventId)
-        .where("uid", "==", user.uid)
+        .where('eventId', '==', eventId)
+        .where('uid', '==', user.uid)
         .get();
 
       if (!registrationSnap.empty) {
@@ -245,32 +246,32 @@ export function EventDetailScreen({
         setRegistration({ ...registration, status });
         await loadEventData();
         Alert.alert(
-          "Estado actualizado",
-          `Tu estado ha sido cambiado a: ${getStatusText(status)}`
+          'Estado actualizado',
+          `Tu estado ha sido cambiado a: ${getStatusText(status)}`,
         );
       }
     } catch (error) {
-      console.error("Error updating status:", error);
-      Alert.alert("Error", "No se pudo actualizar el estado");
+      console.error('Error updating status:', error);
+      Alert.alert('Error', 'No se pudo actualizar el estado');
     }
   };
 
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("es-ES", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
+    return date.toLocaleDateString('es-ES', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
     });
   };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case "easy":
+      case 'easy':
         return theme.colors.success;
-      case "med":
+      case 'med':
         return theme.colors.warning;
-      case "hard":
+      case 'hard':
         return theme.colors.error;
       default:
         return theme.colors.gray[500];
@@ -279,24 +280,24 @@ export function EventDetailScreen({
 
   const getDifficultyText = (difficulty: string) => {
     switch (difficulty) {
-      case "easy":
-        return "Fácil";
-      case "med":
-        return "Medio";
-      case "hard":
-        return "Difícil";
+      case 'easy':
+        return 'Fácil';
+      case 'med':
+        return 'Medio';
+      case 'hard':
+        return 'Difícil';
       default:
-        return "No especificado";
+        return 'No especificado';
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "going":
+      case 'going':
         return theme.colors.success;
-      case "maybe":
+      case 'maybe':
         return theme.colors.warning;
-      case "notgoing":
+      case 'notgoing':
         return theme.colors.error;
       default:
         return theme.colors.gray[500];
@@ -305,14 +306,14 @@ export function EventDetailScreen({
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case "going":
-        return "Voy";
-      case "maybe":
-        return "Tal vez";
-      case "notgoing":
-        return "No voy";
+      case 'going':
+        return 'Voy';
+      case 'maybe':
+        return 'Tal vez';
+      case 'notgoing':
+        return 'No voy';
       default:
-        return "Sin confirmar";
+        return 'Sin confirmar';
     }
   };
 
@@ -338,11 +339,11 @@ export function EventDetailScreen({
 
   const isAdmin = event.createdBy === user?.uid;
   const isEventPast = new Date(event.date) < new Date();
-  const goingCount = participants.filter((p) => p.status === "going").length;
-  const maybeCount = participants.filter((p) => p.status === "maybe").length;
+  const goingCount = participants.filter(p => p.status === 'going').length;
+  const maybeCount = participants.filter(p => p.status === 'maybe').length;
   const totalCount = goingCount + maybeCount;
 
-  console.log("EventDetailScreen - Debug:", {
+  console.log('EventDetailScreen - Debug:', {
     isAdmin,
     hasRegistration: !!registration,
     userId: user?.uid,
@@ -355,7 +356,8 @@ export function EventDetailScreen({
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={styles.backButton}>
+          style={styles.backButton}
+        >
           <Icon name="arrow-back" size={24} color={theme.colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Detalle del Evento</Text>
@@ -366,7 +368,8 @@ export function EventDetailScreen({
         style={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }>
+        }
+      >
         <Card style={styles.eventCard}>
           <Text style={styles.sectionTitle}>Detalles del evento</Text>
 
@@ -461,7 +464,7 @@ export function EventDetailScreen({
           )}
         </Card>
 
-        <Card style={styles.summaryCard}>
+        {/* <Card style={styles.summaryCard}>
           <Text style={styles.sectionTitle}>Participantes</Text>
           <Text style={styles.summaryText}>
             Ve quién más va al evento y accede a sus perfiles públicos.
@@ -487,23 +490,13 @@ export function EventDetailScreen({
               <Button
                 title="Ver lista de participantes"
                 onPress={() =>
-                  navigation.navigate("Participants", { eventId: event.id })
+                  navigation.navigate('Participants', { eventId: event.id })
                 }
                 style={styles.viewParticipantsBtn}
               />
-              <Button
-                title="Ver progreso de checkpoints"
-                onPress={() =>
-                  navigation.navigate("Checkpoints", {
-                    eventId: event.id,
-                    userId: user?.uid || "",
-                  })
-                }
-                style={styles.viewCheckpointsBtn}
-              />
             </>
           )}
-        </Card>
+        </Card> */}
 
         {isAdmin && event.inviteCode && (
           <Card style={styles.adminCard}>
@@ -524,10 +517,11 @@ export function EventDetailScreen({
               isEventActive
                 ? { ...styles.eventControlCard, ...styles.eventActiveCard }
                 : styles.eventControlCard
-            }>
+            }
+          >
             <View style={styles.eventControlHeader}>
               <Icon
-                name={isEventActive ? "radio-button-on" : "radio-button-off"}
+                name={isEventActive ? 'radio-button-on' : 'radio-button-off'}
                 size={24}
                 color={
                   isEventActive
@@ -536,7 +530,7 @@ export function EventDetailScreen({
                 }
               />
               <Text style={styles.eventControlTitle}>
-                {isEventActive ? "Evento Activo" : "Control de Evento"}
+                {isEventActive ? 'Evento Activo' : 'Control de Evento'}
               </Text>
             </View>
 
@@ -551,12 +545,12 @@ export function EventDetailScreen({
 
             <Text style={styles.eventControlMessage}>
               {isEventActive
-                ? "El seguimiento de tu ubicación está activo. Los checkpoints se registrarán automáticamente."
-                : "Inicia el evento para comenzar el seguimiento de checkpoints."}
+                ? 'El seguimiento de tu ubicación está activo. Los checkpoints se registrarán automáticamente.'
+                : 'Inicia el evento para comenzar el seguimiento de checkpoints.'}
             </Text>
 
             <Button
-              title={isEventActive ? "Detener Evento" : "Iniciar Evento"}
+              title={isEventActive ? 'Detener Evento' : 'Iniciar Evento'}
               onPress={isEventActive ? handleStopEvent : handleStartEvent}
               loading={geofenceLoading}
               style={{
@@ -567,13 +561,26 @@ export function EventDetailScreen({
               }}
             />
 
+            {isEventActive && (
+              <Button
+                title="Ver progreso de checkpoints"
+                onPress={() =>
+                  navigation.navigate('Checkpoints', {
+                    eventId: event.id,
+                    userId: user?.uid || '',
+                  })
+                }
+                style={styles.viewCheckpointsBtn}
+              />
+            )}
+
             {geofenceStatus.isActive && (
               <View style={styles.geofenceStats}>
                 <Text style={styles.geofenceStatsText}>
                   📍 {geofenceStatus.checkpointsCount} checkpoints activos
                 </Text>
                 <Text style={styles.geofenceStatsText}>
-                  {geofenceStatus.isOnline ? "🟢 En línea" : "🔴 Sin conexión"}
+                  {geofenceStatus.isOnline ? '🟢 En línea' : '🔴 Sin conexión'}
                 </Text>
                 {geofenceStatus.pendingEvents > 0 && (
                   <Text style={styles.geofenceStatsText}>
@@ -588,7 +595,7 @@ export function EventDetailScreen({
 
         {!registration && !isAdmin ? (
           <Card style={styles.joinCard}>
-            {event.joinMode === "code" && !showInviteInput ? (
+            {event.joinMode === 'code' && !showInviteInput ? (
               <View>
                 <Text style={styles.joinTitle}>Evento Privado</Text>
                 <Text style={styles.joinMessage}>
@@ -600,7 +607,7 @@ export function EventDetailScreen({
                   style={styles.joinButton}
                 />
               </View>
-            ) : event.joinMode === "code" && showInviteInput ? (
+            ) : event.joinMode === 'code' && showInviteInput ? (
               <View>
                 <Text style={styles.joinTitle}>Código de Invitación</Text>
                 <TextInput
@@ -615,7 +622,7 @@ export function EventDetailScreen({
                     title="Cancelar"
                     onPress={() => {
                       setShowInviteInput(false);
-                      setInviteCode("");
+                      setInviteCode('');
                     }}
                     variant="outline"
                     style={styles.codeButton}
@@ -648,15 +655,16 @@ export function EventDetailScreen({
               <TouchableOpacity
                 style={[
                   styles.statusButton,
-                  registration.status === "going" && styles.statusButtonActive,
+                  registration.status === 'going' && styles.statusButtonActive,
                   { borderColor: theme.colors.success },
                 ]}
-                onPress={() => handleUpdateStatus("going")}>
+                onPress={() => handleUpdateStatus('going')}
+              >
                 <Icon
                   name="checkmark-circle"
                   size={20}
                   color={
-                    registration.status === "going"
+                    registration.status === 'going'
                       ? theme.colors.white
                       : theme.colors.success
                   }
@@ -664,9 +672,10 @@ export function EventDetailScreen({
                 <Text
                   style={[
                     styles.statusButtonText,
-                    registration.status === "going" &&
+                    registration.status === 'going' &&
                       styles.statusButtonTextActive,
-                  ]}>
+                  ]}
+                >
                   Voy
                 </Text>
               </TouchableOpacity>
@@ -674,15 +683,16 @@ export function EventDetailScreen({
               <TouchableOpacity
                 style={[
                   styles.statusButton,
-                  registration.status === "maybe" && styles.statusButtonActive,
+                  registration.status === 'maybe' && styles.statusButtonActive,
                   { borderColor: theme.colors.warning },
                 ]}
-                onPress={() => handleUpdateStatus("maybe")}>
+                onPress={() => handleUpdateStatus('maybe')}
+              >
                 <Icon
                   name="help-circle"
                   size={20}
                   color={
-                    registration.status === "maybe"
+                    registration.status === 'maybe'
                       ? theme.colors.white
                       : theme.colors.warning
                   }
@@ -690,9 +700,10 @@ export function EventDetailScreen({
                 <Text
                   style={[
                     styles.statusButtonText,
-                    registration.status === "maybe" &&
+                    registration.status === 'maybe' &&
                       styles.statusButtonTextActive,
-                  ]}>
+                  ]}
+                >
                   Tal vez
                 </Text>
               </TouchableOpacity>
@@ -700,16 +711,17 @@ export function EventDetailScreen({
               <TouchableOpacity
                 style={[
                   styles.statusButton,
-                  registration.status === "notgoing" &&
+                  registration.status === 'notgoing' &&
                     styles.statusButtonActive,
                   { borderColor: theme.colors.error },
                 ]}
-                onPress={() => handleUpdateStatus("notgoing")}>
+                onPress={() => handleUpdateStatus('notgoing')}
+              >
                 <Icon
                   name="close-circle"
                   size={20}
                   color={
-                    registration.status === "notgoing"
+                    registration.status === 'notgoing'
                       ? theme.colors.white
                       : theme.colors.error
                   }
@@ -717,9 +729,10 @@ export function EventDetailScreen({
                 <Text
                   style={[
                     styles.statusButtonText,
-                    registration.status === "notgoing" &&
+                    registration.status === 'notgoing' &&
                       styles.statusButtonTextActive,
-                  ]}>
+                  ]}
+                >
                   No voy
                 </Text>
               </TouchableOpacity>
@@ -737,9 +750,9 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.gray[50],
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: theme.colors.primary,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
@@ -761,8 +774,8 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: theme.spacing.lg,
   },
   errorTitle: {
@@ -771,7 +784,7 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     marginTop: theme.spacing.lg,
     marginBottom: theme.spacing.xl,
-    textAlign: "center",
+    textAlign: 'center',
   },
   eventCard: {
     marginBottom: theme.spacing.lg,
@@ -786,8 +799,8 @@ const styles = StyleSheet.create({
     gap: theme.spacing.lg,
   },
   detailItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
   detailContent: {
     flex: 1,
@@ -797,13 +810,13 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.small.fontSize,
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.xs,
-    textTransform: "uppercase",
-    fontWeight: "600",
+    textTransform: 'uppercase',
+    fontWeight: '600',
   },
   detailValue: {
     fontSize: theme.typography.body.fontSize,
     color: theme.colors.text,
-    fontWeight: "500",
+    fontWeight: '500',
   },
   detailSubValue: {
     fontSize: theme.typography.caption.fontSize,
@@ -823,7 +836,7 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     marginBottom: theme.spacing.lg,
-    backgroundColor: "#FFF9E6",
+    backgroundColor: '#FFF9E6',
     borderLeftWidth: 4,
     borderLeftColor: theme.colors.warning,
   },
@@ -833,31 +846,31 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   participantsStats: {
-    flexDirection: "row",
-    justifyContent: "space-around",
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     marginBottom: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
     backgroundColor: theme.colors.white,
     borderRadius: theme.borderRadius.md,
   },
   statItem: {
-    alignItems: "center",
+    alignItems: 'center',
   },
   statNumber: {
     fontSize: 32,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: theme.colors.primary,
     marginBottom: theme.spacing.xs,
   },
   statLabel: {
     fontSize: theme.typography.caption.fontSize,
     color: theme.colors.textSecondary,
-    textTransform: "uppercase",
-    fontWeight: "600",
+    textTransform: 'uppercase',
+    fontWeight: '600',
   },
   viewParticipantsBtn: {
     marginTop: theme.spacing.sm,
-    backgroundColor: "#D32F2F",
+    backgroundColor: '#D32F2F',
     marginBottom: theme.spacing.sm,
   },
   viewCheckpointsBtn: {
@@ -866,13 +879,13 @@ const styles = StyleSheet.create({
   },
   adminCard: {
     marginBottom: theme.spacing.lg,
-    backgroundColor: "#F3E5F5",
+    backgroundColor: '#F3E5F5',
     borderLeftWidth: 4,
     borderLeftColor: theme.colors.primary,
   },
   adminHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: theme.spacing.sm,
   },
   adminTitle: {
@@ -887,17 +900,17 @@ const styles = StyleSheet.create({
   },
   inviteCodeText: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: theme.colors.primary,
-    fontFamily: "monospace",
-    textAlign: "center",
+    fontFamily: 'monospace',
+    textAlign: 'center',
     paddingVertical: theme.spacing.md,
     marginVertical: theme.spacing.sm,
     backgroundColor: theme.colors.white,
     borderRadius: theme.borderRadius.md,
   },
   joinCard: {
-    backgroundColor: "#E3F2FD",
+    backgroundColor: '#E3F2FD',
     borderLeftWidth: 4,
     borderLeftColor: theme.colors.info,
     marginBottom: theme.spacing.lg,
@@ -924,19 +937,19 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body.fontSize,
     backgroundColor: theme.colors.white,
     marginBottom: theme.spacing.md,
-    textAlign: "center",
-    fontFamily: "monospace",
-    fontWeight: "bold",
+    textAlign: 'center',
+    fontFamily: 'monospace',
+    fontWeight: 'bold',
   },
   codeButtons: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: theme.spacing.md,
   },
   codeButton: {
     flex: 1,
   },
   statusCard: {
-    backgroundColor: "#E8F5E8",
+    backgroundColor: '#E8F5E8',
     borderLeftWidth: 4,
     borderLeftColor: theme.colors.success,
     marginBottom: theme.spacing.lg,
@@ -948,14 +961,14 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   statusButtons: {
-    flexDirection: "row",
+    flexDirection: 'row',
     gap: theme.spacing.sm,
   },
   statusButton: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: theme.spacing.md,
     borderRadius: theme.borderRadius.md,
     borderWidth: 2,
@@ -967,7 +980,7 @@ const styles = StyleSheet.create({
   statusButtonText: {
     marginLeft: theme.spacing.xs,
     fontSize: theme.typography.caption.fontSize,
-    fontWeight: "600",
+    fontWeight: '600',
     color: theme.colors.text,
   },
   statusButtonTextActive: {
@@ -975,17 +988,17 @@ const styles = StyleSheet.create({
   },
   eventControlCard: {
     marginBottom: theme.spacing.lg,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: '#F5F5F5',
     borderLeftWidth: 4,
     borderLeftColor: theme.colors.textSecondary,
   },
   eventActiveCard: {
-    backgroundColor: "#E8F5E9",
+    backgroundColor: '#E8F5E9',
     borderLeftColor: theme.colors.success,
   },
   eventControlHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: theme.spacing.md,
   },
   eventControlTitle: {
@@ -995,13 +1008,13 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.sm,
   },
   activeStatusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: theme.colors.success,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.full,
-    alignSelf: "flex-start",
+    alignSelf: 'flex-start',
     marginBottom: theme.spacing.md,
   },
   pulseDot: {
@@ -1013,7 +1026,7 @@ const styles = StyleSheet.create({
   },
   activeStatusText: {
     fontSize: theme.typography.caption.fontSize,
-    fontWeight: "600",
+    fontWeight: '600',
     color: theme.colors.white,
   },
   eventControlMessage: {

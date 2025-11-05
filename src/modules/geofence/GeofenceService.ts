@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // no longer dependent on Expo packages.
 import firestore from '@react-native-firebase/firestore';
 import { PermissionsAndroid, Platform } from 'react-native';
+import { geofenceMonitor } from './GeofenceMonitor';
 import { Checkpoint, GeofenceRegion } from './types';
 
 const GEOFENCE_TASK_NAME = 'geofence-task';
@@ -156,7 +157,7 @@ export class GeofenceService {
     }
   }
 
-  async registerGeofences(eventId: string): Promise<boolean> {
+  async registerGeofences(eventId: string, userId?: string): Promise<boolean> {
     try {
       const checkpoints = await this.getLocalCheckpoints(eventId);
 
@@ -181,6 +182,15 @@ export class GeofenceService {
       await AsyncStorage.setItem(ACTIVE_EVENT_ID_KEY, eventId);
       await AsyncStorage.setItem(GEOFENCES_ACTIVE_KEY, 'true');
 
+      // Start JS-based geofence monitor (foreground/background while app is alive)
+      try {
+        if (userId) {
+          await geofenceMonitor.start(eventId, userId);
+        }
+      } catch (e) {
+        console.warn('Failed to start GeofenceMonitor:', e);
+      }
+
       console.log(`Saved ${regions.length} geofences for event ${eventId} (native geofencing NOT started)`);
 
       return true;
@@ -196,6 +206,7 @@ export class GeofenceService {
       // geofencing library, call its stop/teardown method here.
       await AsyncStorage.removeItem(ACTIVE_EVENT_ID_KEY);
       await AsyncStorage.setItem(GEOFENCES_ACTIVE_KEY, 'false');
+      try { geofenceMonitor.stop(); } catch {}
       console.log('Geofencing stopped (native geofencing was not active)');
     } catch (error) {
       console.error('Error stopping geofencing:', error);

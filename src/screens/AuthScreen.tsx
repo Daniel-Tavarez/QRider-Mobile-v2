@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -93,7 +94,10 @@ export function AuthScreen() {
 
     try {
       await resetPassword(email);
-      showSuccess('Email enviado', 'Revisa tu correo para restablecer tu contraseña');
+      showSuccess(
+        'Email enviado',
+        'Revisa tu correo para restablecer tu contraseña',
+      );
     } catch (error) {
       showError('Error', 'No se pudo enviar el email de recuperación');
     }
@@ -120,7 +124,7 @@ export function AuthScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
@@ -128,10 +132,12 @@ export function AuthScreen() {
           {/* Logo */}
           <View style={styles.logoContainer}>
             <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>🏍️</Text>
+              <Image
+                source={require('../assets/qrider.png')}
+                style={styles.logo}
+                resizeMode="contain"
+              />
             </View>
-            <Text style={styles.appTitle}>QRider</Text>
-            <Text style={styles.appSubtitle}>Tu perfil de emergencia móvil</Text>
           </View>
 
           <Card style={styles.formCard}>
@@ -147,10 +153,12 @@ export function AuthScreen() {
                 onChangeText={setDisplayName}
                 autoCapitalize="words"
                 autoComplete="name"
+                placeholderTextColor={theme.colors.gray[500]}
               />
             )}
 
             <TextInput
+              placeholderTextColor={theme.colors.gray[500]}
               style={styles.input}
               placeholder="Correo electrónico"
               value={email}
@@ -161,6 +169,7 @@ export function AuthScreen() {
             />
 
             <TextInput
+              placeholderTextColor={theme.colors.gray[500]}
               style={styles.input}
               placeholder="Contraseña"
               value={password}
@@ -171,6 +180,7 @@ export function AuthScreen() {
 
             {isSignUp && (
               <TextInput
+                placeholderTextColor={theme.colors.gray[500]}
                 style={styles.input}
                 placeholder="Confirmar contraseña"
                 value={confirmPassword}
@@ -195,7 +205,9 @@ export function AuthScreen() {
             >
               <Icon name="logo-google" size={20} color="#4285F4" />
               <Text style={styles.googleButtonText}>
-                {isSignUp ? 'Crear cuenta con Google' : 'Iniciar sesión con Google'}
+                {isSignUp
+                  ? 'Crear cuenta con Google'
+                  : 'Iniciar sesión con Google'}
               </Text>
             </TouchableOpacity>
 
@@ -235,6 +247,10 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
+  logo: {
+    width: '100%',
+    height: '100%',
+  },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -242,30 +258,15 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: theme.spacing.xxl,
+    marginBottom: theme.spacing.xl,
   },
   logoPlaceholder: {
-    width: 80,
-    height: 80,
-    backgroundColor: theme.colors.primary,
+    width: 180,
+    height: 150,
     borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  logoText: {
-    fontSize: 40,
-  },
-  appTitle: {
-    fontSize: theme.typography.h1.fontSize,
-    fontWeight: theme.typography.h1.fontWeight,
-    color: theme.colors.primary,
-    marginBottom: theme.spacing.xs,
-  },
-  appSubtitle: {
-    fontSize: theme.typography.body.fontSize,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
+    marginBottom: -theme.spacing.md,
   },
   formCard: {
     marginBottom: theme.spacing.lg,
@@ -285,6 +286,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body.fontSize,
     marginBottom: theme.spacing.md,
     backgroundColor: theme.colors.white,
+    color: theme.colors.text,
   },
   authButton: {
     marginTop: theme.spacing.md,

@@ -35,7 +35,15 @@
 		<true/>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>Necesitamos tu ubicación para registrar tu paso por los checkpoints durante el evento.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Permite a QRider acceder a tu ubicación en todo momento para asegurar el registro de checkpoints incluso con la app en segundo plano.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Permite a QRider acceder a tu ubicación en todo momento para asegurar el registro de checkpoints incluso con la app en segundo plano.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>

@@ -33,27 +33,35 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
 
   const loadEvents = async () => {
     try {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
+      
+      const formattedDate = yesterday.toISOString().split('T')[0];
       const querySnapshot = await firestore()
-        .collection('events')
-        .orderBy('date', 'desc')
-        .get();
+      .collection('events')
+      .where('date', '>=', formattedDate)
+      .orderBy('date', 'desc')
+      .get();
       
       const eventsData = querySnapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       })) as Event[];
       
       setEvents(eventsData);
-      
+
       // Load participant counts for each event
       const counts: Record<string, number> = {};
       for (const event of eventsData) {
-        const registrationsSnap = await firestore()
+        const countSnap = await firestore()
           .collection('eventRegistrations')
           .where('eventId', '==', event.id)
           .where('status', 'in', ['going', 'maybe'])
+          .count()
           .get();
-        counts[event.id] = registrationsSnap.size;
+
+        counts[event.id] = countSnap.data().count;
       }
       setParticipantCounts(counts);
     } catch (error) {
@@ -71,19 +79,27 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
 
   const getDifficultyColor = (difficulty?: string) => {
     switch (difficulty) {
-      case 'easy': return theme.colors.success;
-      case 'med': return theme.colors.warning;
-      case 'hard': return theme.colors.error;
-      default: return theme.colors.gray[500];
+      case 'easy':
+        return theme.colors.success;
+      case 'med':
+        return theme.colors.warning;
+      case 'hard':
+        return theme.colors.error;
+      default:
+        return theme.colors.gray[500];
     }
   };
 
   const getDifficultyText = (difficulty?: string) => {
     switch (difficulty) {
-      case 'easy': return 'Fácil';
-      case 'med': return 'Intermedio';
-      case 'hard': return 'Difícil';
-      default: return 'No especificado';
+      case 'easy':
+        return 'Fácil';
+      case 'med':
+        return 'Intermedio';
+      case 'hard':
+        return 'Difícil';
+      default:
+        return 'No especificado';
     }
   };
 
@@ -111,17 +127,19 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
         <Text style={styles.headerTitle}>Eventos</Text>
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
         {events.length > 0 ? (
-          events.map((event) => (
+          events.map(event => (
             <TouchableOpacity
               key={event.id}
-              onPress={() => navigation.navigate('EventDetail', { eventId: event.id })}
+              onPress={() =>
+                navigation.navigate('EventDetail', { eventId: event.id })
+              }
               activeOpacity={0.7}
             >
               <Card style={styles.eventCard}>
@@ -130,12 +148,18 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
                     <Text style={styles.eventTitle}>{event.title}</Text>
                     <View style={styles.eventMeta}>
                       <View style={styles.eventDate}>
-                        <Icon name="calendar" size={16} color={theme.colors.textSecondary} />
+                        <Icon
+                          name="calendar"
+                          size={16}
+                          color={theme.colors.textSecondary}
+                        />
                         <Text style={styles.eventDateText}>
                           {formatDate(event.date)}
                         </Text>
                         {event.startTime && (
-                          <Text style={styles.eventTime}>{event.startTime}</Text>
+                          <Text style={styles.eventTime}>
+                            {event.startTime}
+                          </Text>
                         )}
                       </View>
                       {isEventPast(event.date) && (
@@ -152,10 +176,16 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
                       </View>
                     )}
                     {event.difficulty && (
-                      <View style={[
-                        styles.difficultyBadge,
-                        { backgroundColor: getDifficultyColor(event.difficulty) }
-                      ]}>
+                      <View
+                        style={[
+                          styles.difficultyBadge,
+                          {
+                            backgroundColor: getDifficultyColor(
+                              event.difficulty,
+                            ),
+                          },
+                        ]}
+                      >
                         <Text style={styles.difficultyText}>
                           {getDifficultyText(event.difficulty)}
                         </Text>
@@ -166,8 +196,14 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
 
                 {event.meetingPoint.text && (
                   <View style={styles.meetingPoint}>
-                    <Icon name="location" size={16} color={theme.colors.textSecondary} />
-                    <Text style={styles.meetingPointText}>{event.meetingPoint.text}</Text>
+                    <Icon
+                      name="location"
+                      size={16}
+                      color={theme.colors.textSecondary}
+                    />
+                    <Text style={styles.meetingPointText}>
+                      {event.meetingPoint.text}
+                    </Text>
                   </View>
                 )}
 
@@ -179,7 +215,11 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
 
                 <View style={styles.eventFooter}>
                   <View style={styles.capacityInfo}>
-                    <Icon name="people" size={16} color={theme.colors.textSecondary} />
+                    <Icon
+                      name="people"
+                      size={16}
+                      color={theme.colors.textSecondary}
+                    />
                     <Text style={styles.capacityText}>
                       {event.capacity 
                         ? `${participantCounts[event.id] || 0}/${event.capacity}` 
@@ -187,14 +227,22 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
                       }
                     </Text>
                   </View>
-                  <Icon name="chevron-forward" size={20} color={theme.colors.gray[400]} />
+                  <Icon
+                    name="chevron-forward"
+                    size={20}
+                    color={theme.colors.gray[400]}
+                  />
                 </View>
               </Card>
             </TouchableOpacity>
           ))
         ) : (
           <View style={styles.emptyContainer}>
-            <Icon name="calendar-outline" size={64} color={theme.colors.gray[400]} />
+            <Icon
+              name="calendar-outline"
+              size={64}
+              color={theme.colors.gray[400]}
+            />
             <Text style={styles.emptyTitle}>No hay eventos disponibles</Text>
             <Text style={styles.emptyMessage}>
               Los eventos aparecerán aquí cuando estén disponibles.

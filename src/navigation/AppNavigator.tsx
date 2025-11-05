@@ -22,9 +22,17 @@ const Tab = createBottomTabNavigator();
 
 function MainTabs() {
   return (
-      <Tab.Navigator
+    <Tab.Navigator
       screenOptions={({ route }: { route: any }) => ({
-        tabBarIcon: ({ focused, color, size }: { focused: boolean; color: string; size: number }) => {
+        tabBarIcon: ({
+          focused,
+          color,
+          size,
+        }: {
+          focused: boolean;
+          color: string;
+          size: number;
+        }) => {
           let iconName: string;
 
           if (route.name === 'Profile') {
@@ -37,14 +45,12 @@ function MainTabs() {
 
           return <Icon name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.gray[500],
+        tabBarActiveTintColor: theme.colors.white,
+        tabBarInactiveTintColor: theme.colors.gray[50],
         tabBarStyle: {
-          backgroundColor: theme.colors.surface,
+          backgroundColor: theme.colors.primary,
           borderTopWidth: 1,
-          borderTopColor: theme.colors.gray[800],
-          paddingBottom: 8,
-          paddingTop: 8,
+          paddingTop: 0,
           height: 60,
         },
         tabBarLabelStyle: {
@@ -54,13 +60,13 @@ function MainTabs() {
         headerShown: false,
       })}
     >
-      <Tab.Screen 
-        name="Profile" 
+      <Tab.Screen
+        name="Profile"
         component={ProfileScreen}
         options={{ tabBarLabel: 'Perfil' }}
       />
-      <Tab.Screen 
-        name="Events" 
+      <Tab.Screen
+        name="Events"
         component={EventsScreen}
         options={{ tabBarLabel: 'Eventos' }}
       />
@@ -80,7 +86,6 @@ export function AppNavigator() {
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          // native stack uses contentStyle instead of cardStyle
           contentStyle: { backgroundColor: theme.colors.background },
         }}
       >
