@@ -157,7 +157,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (GoogleSignin) {
       try {
         GoogleSignin.configure({
-          webClientId: '969099536473-89gcn8vq9dg7t7nqg8s2r6u5p5otqhbl.apps.googleusercontent.com',
+          webClientId: '476161322544-062klmnbgjs7r7b9k26bdkb3bcooltve.apps.googleusercontent.com',
         });
       } catch (e) {
         console.warn('Failed to configure GoogleSignin:', e);
