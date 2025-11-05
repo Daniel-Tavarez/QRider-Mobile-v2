@@ -109,6 +109,8 @@ export interface Event {
     lat?: number;
     lng?: number;
     text?: string;
+    mapUrl?: string;
+    routeUrl?: string;
   };
   difficulty?: 'easy' | 'med' | 'hard';
   notes?: string;
@@ -116,9 +118,15 @@ export interface Event {
   joinMode: 'public' | 'code';
   inviteCode?: string;
   capacity?: number;
-  emergencyWindow?: {
-    start: string;
-    end: string;
+  window?: {
+    start: {
+      _nanoseconds: number;
+      _seconds: number;
+    };
+    end: {
+      _nanoseconds: number;
+      _seconds: number;
+    };
   };
   createdAt: FirebaseFirestoreTypes.Timestamp;
   updatedAt: FirebaseFirestoreTypes.Timestamp;

@@ -266,8 +266,8 @@ export function EventDetailScreen({
     });
   };
 
-  const formatTimestamp = (timestamp: { seconds: number; nanoseconds: number }): string => {
-    const date = new Date(timestamp.seconds * 1000);
+  const formatTimestamp = (timestamp: { _seconds: number; _nanoseconds: number }): string => {
+    const date = new Date(timestamp._seconds * 1000);
     return date.toLocaleString('es-ES', {
       day: 'numeric',
       month: 'short',
@@ -466,22 +466,6 @@ export function EventDetailScreen({
               </View>
             )}
 
-            {event.emergencyWindow && (
-              <View style={styles.detailItem}>
-                <Icon
-                  name="alert-circle"
-                  size={20}
-                  color={theme.colors.error}
-                />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Ventana de emergencia</Text>
-                  <Text style={styles.detailValue}>
-                    {event.emergencyWindow.start} - {event.emergencyWindow.end}
-                  </Text>
-                </View>
-              </View>
-            )}
-
             {event.difficulty && (
               <View style={styles.detailItem}>
                 <Icon
@@ -530,22 +514,6 @@ export function EventDetailScreen({
                 </Text>
               </View>
             </View>
-
-            {event.allowViewers !== undefined && (
-              <View style={styles.detailItem}>
-                <Icon
-                  name="eye"
-                  size={20}
-                  color={theme.colors.textSecondary}
-                />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Espectadores</Text>
-                  <Text style={styles.detailValue}>
-                    {event.allowViewers ? 'Permitidos' : 'No permitidos'}
-                  </Text>
-                </View>
-              </View>
-            )}
           </View>
 
           {event.notes && (
