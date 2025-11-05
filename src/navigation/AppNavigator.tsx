@@ -2,6 +2,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '../components/common/Icon';
 import { theme } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,6 +22,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
 
 function MainTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={({ route }: { route: any }) => ({
@@ -51,12 +53,14 @@ function MainTabs() {
           backgroundColor: theme.colors.primary,
           borderTopWidth: 1,
           paddingTop: 0,
-          height: 60,
+          paddingBottom: Math.max(insets.bottom, 8),
+          height: 60 + Math.max(insets.bottom, 8),
         },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '600',
         },
+        tabBarHideOnKeyboard: true,
         headerShown: false,
       })}
     >

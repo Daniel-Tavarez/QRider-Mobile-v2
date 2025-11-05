@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AppState, AppStateStatus, Alert, Linking, Platform } from 'react-native';
+import { Alert, AppState, AppStateStatus, Linking, Platform } from 'react-native';
+import { TrackingService } from '../../lib/TrackingService.android';
 import { geofenceService } from './GeofenceService';
 import { syncManager } from './GeofenceSyncManager';
 import { defineGeofenceTask } from './GeofenceTaskManager';
 import { Checkpoint, GeofenceEvent, GeofenceStatus } from './types';
-import { TrackingService } from '../../lib/TrackingService';
 
 export const useGeofence = (eventId: string, userId: string) => {
   const [status, setStatus] = useState<GeofenceStatus>({

@@ -430,6 +430,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.surface,
+    paddingBottom: -theme.spacing.lg,
   },
   header: {
     flexDirection: 'row',
@@ -539,7 +540,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   checkpointsCard: {
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.xxl,
   },
   sectionTitle: {
     fontSize: theme.typography.h4.fontSize,
