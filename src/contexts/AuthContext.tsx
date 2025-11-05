@@ -105,15 +105,46 @@ export function AuthProvider({ children }: AuthProviderProps) {
         throw new Error('Google Sign-In no está disponible. Por favor, reconstruye la app después de instalar las dependencias.');
       }
 
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const userInfo = await GoogleSignin.signIn();
-      const idToken = userInfo.data?.idToken;
-
-      if (!idToken) {
-        throw new Error('No se pudo obtener el token de Google');
+      // Asegura configuración correcta (ID web client para ID token)
+      try {
+        GoogleSignin.configure({
+          webClientId: '476161322544-062klmnbgjs7r7b9k26bdkb3bcooltve.apps.googleusercontent.com',
+        });
+      } catch (e) {
+        // no fatal
       }
 
-      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+      // Verifica Google Play Services (Android)
+      try {
+        await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      } catch (e) {
+        throw new Error('Actualiza Google Play Services en tu dispositivo.');
+      }
+
+      const response = await GoogleSignin.signIn();
+      if (!response || response.type !== 'success') {
+        throw new Error('Inicio de sesión cancelado.');
+      }
+
+      // Obtén tokens de forma fiable (evita idToken nulo); usa accessToken como respaldo
+      let idToken: string | null | undefined = response.data?.idToken;
+      let accessToken: string | null | undefined = undefined;
+      try {
+        const tokens = await GoogleSignin.getTokens();
+        idToken = idToken || tokens?.idToken;
+        accessToken = tokens?.accessToken || undefined;
+      } catch {
+        // ignorar
+      }
+
+      if (!idToken && !accessToken) {
+        // Guía habitual: mismatch de packageName / SHA-1 o Web Client ID
+        throw new Error(
+          'No se pudo obtener credenciales de Google (idToken/accessToken). Verifica packageName, SHA-1/SHA-256 y Web Client ID en Firebase.'
+        );
+      }
+
+      const googleCredential = auth.GoogleAuthProvider.credential(idToken || null, accessToken || undefined);
       const result = await auth().signInWithCredential(googleCredential);
 
       let userDoc = await getUserDocument(result.user.uid);
@@ -130,7 +161,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await AsyncStorage.setItem('user', JSON.stringify(userDoc));
     } catch (error: any) {
       console.error('Google Sign-In Error:', error);
-      throw error;
+      // Mapear errores comunes a mensajes claros
+      const code = error?.code || error?.message || '';
+      if (typeof code === 'string') {
+        if (code.includes('SIGN_IN_CANCELLED') || code.includes('cancelled')) {
+          throw new Error('Inicio de sesión cancelado');
+        }
+        if (code.includes('DEVELOPER_ERROR') || code.includes('10')) {
+          throw new Error('Configura el SHA-1/SHA-256 del keystore en Firebase y vuelve a descargar google-services.json.');
+        }
+        if (code.includes('PLAY_SERVICES_NOT_AVAILABLE')) {
+          throw new Error('Google Play Services no disponible/actualiza en el dispositivo.');
+        }
+        if (code.includes('NETWORK_ERROR')) {
+          throw new Error('Error de red. Revisa tu conexión.');
+        }
+        if (code.includes('auth/account-exists-with-different-credential')) {
+          throw new Error('La cuenta ya existe con otro método. Inicia con ese método y vincula Google en tu perfil.');
+        }
+      }
+      throw new Error('No se pudo iniciar sesión con Google');
     }
   };
 
@@ -143,6 +193,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // non-fatal
       console.warn('Logout: stopGeofencing failed or not active');
     }
+    try {
+      if (GoogleSignin) {
+        await GoogleSignin.signOut();
+      }
+    } catch {}
     await auth().signOut();
     await AsyncStorage.removeItem('user');
   };

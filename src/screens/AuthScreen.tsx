@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../components/common/Button';
-import { Card } from '../components/common/Card';
 import { Icon } from '../components/common/Icon';
 import { theme } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
@@ -153,7 +152,7 @@ export function AuthScreen() {
 
             {isSignUp && (
               <View style={styles.inputWrapper}>
-                <Icon name="person" size={20} color={theme.colors.gray[500]} style={styles.inputIcon} />
+                <Icon name="person" size={20} color={theme.colors.gray[500]} />
                 <TextInput
                   style={styles.input}
                   placeholder="Nombre completo"
@@ -167,7 +166,7 @@ export function AuthScreen() {
             )}
 
             <View style={styles.inputWrapper}>
-              <Icon name="mail" size={20} color={theme.colors.gray[500]} style={styles.inputIcon} />
+              <Icon name="mail" size={20} color={theme.colors.gray[500]} />
               <TextInput
                 placeholderTextColor={theme.colors.gray[500]}
                 style={styles.input}
@@ -181,7 +180,7 @@ export function AuthScreen() {
             </View>
 
             <View style={styles.inputWrapper}>
-              <Icon name="lock-closed" size={20} color={theme.colors.gray[500]} style={styles.inputIcon} />
+              <Icon name="lock-closed" size={20} color={theme.colors.gray[500]} />
               <TextInput
                 placeholderTextColor={theme.colors.gray[500]}
                 style={styles.input}
@@ -195,7 +194,7 @@ export function AuthScreen() {
 
             {isSignUp && (
               <View style={styles.inputWrapper}>
-                <Icon name="lock-closed" size={20} color={theme.colors.gray[500]} style={styles.inputIcon} />
+                <Icon name="lock-closed" size={20} color={theme.colors.gray[500]} />
                 <TextInput
                   placeholderTextColor={theme.colors.gray[500]}
                   style={styles.input}

@@ -7,20 +7,38 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:476161322544:android:ae9924e7977cfaba8887f5",
+        "mobilesdk_app_id": "1:476161322544:android:4150b0df401007a38887f5",
         "android_client_info": {
-          "package_name": "com.qriderrd"
+          "package_name": "qrider.mobile"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "476161322544-mj13ateb53n2n039kboa1r4pulos1r94.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "qrider.mobile",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "476161322544-062klmnbgjs7r7b9k26bdkb3bcooltve.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyDNMfYPvscr_AswdYhbkMfVCtckD0uEzUA"
+          "current_key": "AIzaSyClKNJQynO3iy9nS9rJIIFBzrnkfwKdKSg"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "476161322544-062klmnbgjs7r7b9k26bdkb3bcooltve.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
