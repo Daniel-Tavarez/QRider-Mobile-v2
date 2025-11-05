@@ -75,9 +75,7 @@ export function ProfileScreen() {
   };
 
   const openWhatsApp = (phoneNumber: string) => {
-    debugger;
     const url = `https://wa.me/+1${phoneNumber.replace(/\D/g, '')}`;
-    console.log(url);
     Linking.canOpenURL(url)
       .then(supported => {
         if (supported) {

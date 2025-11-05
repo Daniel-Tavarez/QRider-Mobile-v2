@@ -256,6 +256,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.gray[50],
+    paddingBottom: -theme.spacing.lg,
   },
   keyboardView: {
     flex: 1,
