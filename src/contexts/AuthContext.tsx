@@ -2,10 +2,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { geofenceService } from '../modules/geofence';
 import { User } from '../types';
+
+let GoogleSignin: any = null;
+try {
+  GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+} catch (e) {
+  console.warn('Google Sign-In not available');
+}
 
 interface AuthContextType {
   user: FirebaseAuthTypes.User | null;
@@ -95,6 +101,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signInWithGoogle = async () => {
     try {
+      if (!GoogleSignin) {
+        throw new Error('Google Sign-In no está disponible. Por favor, reconstruye la app después de instalar las dependencias.');
+      }
+
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       const userInfo = await GoogleSignin.signIn();
       const idToken = userInfo.data?.idToken;
@@ -144,9 +154,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     console.log('AuthContext: Setting up auth listener');
 
-    GoogleSignin.configure({
-      webClientId: '969099536473-89gcn8vq9dg7t7nqg8s2r6u5p5otqhbl.apps.googleusercontent.com',
-    });
+    if (GoogleSignin) {
+      try {
+        GoogleSignin.configure({
+          webClientId: '969099536473-89gcn8vq9dg7t7nqg8s2r6u5p5otqhbl.apps.googleusercontent.com',
+        });
+      } catch (e) {
+        console.warn('Failed to configure GoogleSignin:', e);
+      }
+    }
 
     const timeout = setTimeout(() => {
       console.log('AuthContext: Timeout reached, setting loading to false');
