@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -265,6 +266,30 @@ export function EventDetailScreen({
     });
   };
 
+  const formatTimestamp = (timestamp: { seconds: number; nanoseconds: number }): string => {
+    const date = new Date(timestamp.seconds * 1000);
+    return date.toLocaleString('es-ES', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const openLink = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'No se puede abrir el enlace');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo abrir el enlace');
+    }
+  };
+
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'easy':
@@ -403,6 +428,24 @@ export function EventDetailScreen({
                   <Text style={styles.detailValue}>
                     {event.meetingPoint.text}
                   </Text>
+                  {event.meetingPoint.mapUrl && (
+                    <TouchableOpacity
+                      onPress={() => openLink(event.meetingPoint!.mapUrl!)}
+                      style={styles.linkButton}
+                    >
+                      <Icon name="map" size={16} color={theme.colors.primary} />
+                      <Text style={styles.linkText}>Ver en mapa</Text>
+                    </TouchableOpacity>
+                  )}
+                  {event.meetingPoint.routeUrl && (
+                    <TouchableOpacity
+                      onPress={() => openLink(event.meetingPoint!.routeUrl!)}
+                      style={styles.linkButton}
+                    >
+                      <Icon name="navigate" size={16} color={theme.colors.primary} />
+                      <Text style={styles.linkText}>Ver ruta</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             )}
@@ -450,6 +493,55 @@ export function EventDetailScreen({
                   <Text style={styles.detailLabel}>Dificultad</Text>
                   <Text style={styles.detailValue}>
                     {getDifficultyText(event.difficulty)}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {event.window && (
+              <View style={styles.detailItem}>
+                <Icon
+                  name="time"
+                  size={20}
+                  color={theme.colors.info}
+                />
+                <View style={styles.detailContent}>
+                  <Text style={styles.detailLabel}>Ventana del evento</Text>
+                  <Text style={styles.detailValue}>
+                    Inicia: {formatTimestamp(event.window.start)}
+                  </Text>
+                  <Text style={styles.detailSubValue}>
+                    Termina: {formatTimestamp(event.window.end)}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <View style={styles.detailItem}>
+              <Icon
+                name={event.joinMode === 'public' ? 'globe' : 'lock-closed'}
+                size={20}
+                color={theme.colors.textSecondary}
+              />
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Modo de acceso</Text>
+                <Text style={styles.detailValue}>
+                  {event.joinMode === 'public' ? 'Público' : 'Privado (con código)'}
+                </Text>
+              </View>
+            </View>
+
+            {event.allowViewers !== undefined && (
+              <View style={styles.detailItem}>
+                <Icon
+                  name="eye"
+                  size={20}
+                  color={theme.colors.textSecondary}
+                />
+                <View style={styles.detailContent}>
+                  <Text style={styles.detailLabel}>Espectadores</Text>
+                  <Text style={styles.detailValue}>
+                    {event.allowViewers ? 'Permitidos' : 'No permitidos'}
                   </Text>
                 </View>
               </View>
@@ -1053,5 +1145,17 @@ const styles = StyleSheet.create({
   geofenceStatsText: {
     fontSize: theme.typography.caption.fontSize,
     color: theme.colors.textSecondary,
+  },
+  linkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: theme.spacing.xs,
+    paddingVertical: theme.spacing.xs,
+  },
+  linkText: {
+    fontSize: theme.typography.caption.fontSize,
+    color: theme.colors.primary,
+    marginLeft: theme.spacing.xs,
+    fontWeight: '600',
   },
 });
