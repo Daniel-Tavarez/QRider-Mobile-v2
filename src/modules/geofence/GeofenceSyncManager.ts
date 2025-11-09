@@ -5,9 +5,19 @@ import { GeofenceEvent } from './types';
 
 const PENDING_EVENTS_KEY = 'geofence_pending_events';
 const ALL_EVENTS_KEY_PREFIX = 'geofence_events_';
-const PROGRESS_KEY_PREFIX = 'checkpoint_progress_'; // `${PROGRESS_KEY_PREFIX}${eventId}_${userId}`
+const PROGRESS_KEY_PREFIX = 'checkpoint_progress_'; // `${PROGRESS_KEY_PREFIX}${eventId}_${userId}` (ENTER)
+const EXIT_PROGRESS_KEY_PREFIX = 'checkpoint_exit_progress_'; // `${EXIT_PROGRESS_KEY_PREFIX}${eventId}_${userId}` (EXIT)
 
 type LocalCheckpointProgress = {
+  checkpointId: string;
+  uid: string;
+  eventId: string;
+  timestamp: string; // ISO
+  latitude: number;
+  longitude: number;
+};
+
+type LocalExitProgress = {
   checkpointId: string;
   uid: string;
   eventId: string;
@@ -69,6 +79,16 @@ export class GeofenceSyncManager {
           latitude: event.latitude,
           longitude: event.longitude,
         });
+      } else if (event.eventType === 'EXIT') {
+        // If this is an EXIT, mark local exit progress to dedupe exits
+        await this.saveExitProgressLocal({
+          checkpointId: event.checkpointId,
+          uid: event.userId,
+          eventId: event.eventId,
+          timestamp: event.timestamp,
+          latitude: event.latitude,
+          longitude: event.longitude,
+        });
       }
       return true;
     } catch (error) {
@@ -94,6 +114,22 @@ export class GeofenceSyncManager {
     }
   }
 
+  private async saveExitProgressLocal(progress: LocalExitProgress): Promise<void> {
+    try {
+      const key = `${EXIT_PROGRESS_KEY_PREFIX}${progress.eventId}_${progress.uid}`;
+      const existingJson = await AsyncStorage.getItem(key);
+      const list: LocalExitProgress[] = existingJson ? JSON.parse(existingJson) : [];
+
+      const already = list.find(p => p.checkpointId === progress.checkpointId);
+      if (!already) {
+        list.push(progress);
+        await AsyncStorage.setItem(key, JSON.stringify(list));
+      }
+    } catch (error) {
+      console.error('Error saving local exit checkpoint progress:', error);
+    }
+  }
+
   async getLocalCheckpointProgress(eventId: string, uid: string): Promise<LocalCheckpointProgress[]> {
     try {
       const key = `${PROGRESS_KEY_PREFIX}${eventId}_${uid}`;
@@ -101,6 +137,17 @@ export class GeofenceSyncManager {
       return json ? JSON.parse(json) : [];
     } catch (error) {
       console.error('Error getting local checkpoint progress:', error);
+      return [];
+    }
+  }
+
+  async getLocalExitProgress(eventId: string, uid: string): Promise<LocalExitProgress[]> {
+    try {
+      const key = `${EXIT_PROGRESS_KEY_PREFIX}${eventId}_${uid}`;
+      const json = await AsyncStorage.getItem(key);
+      return json ? JSON.parse(json) : [];
+    } catch (error) {
+      console.error('Error getting local exit checkpoint progress:', error);
       return [];
     }
   }
@@ -132,6 +179,22 @@ export class GeofenceSyncManager {
       }
     } catch (error) {
       console.error('Error pruning local checkpoint progress:', error);
+    }
+
+    try {
+      // Exit progress
+      const exitKey = `${EXIT_PROGRESS_KEY_PREFIX}${eventId}_${uid}`;
+      const exitJson = await AsyncStorage.getItem(exitKey);
+      if (exitJson) {
+        const list: LocalExitProgress[] = JSON.parse(exitJson);
+        const filtered = list.filter(p => validCheckpointIds.includes(p.checkpointId));
+        const prunedExit = list.length - filtered.length;
+        if (prunedExit > 0) {
+          await AsyncStorage.setItem(exitKey, JSON.stringify(filtered));
+        }
+      }
+    } catch (error) {
+      console.error('Error pruning local exit checkpoint progress:', error);
     }
 
     try {
