@@ -170,48 +170,135 @@ export function EventDetailScreen({
   };
 
   const handleJoinWithCode = async () => {
-    if (!event || !user || !inviteCode) {
-      Alert.alert('Error', 'Ingresa el código de invitación');
-      return;
-    }
-
-    if (inviteCode.toUpperCase() !== event.inviteCode) {
-      Alert.alert('Código incorrecto', 'El código de invitación no es válido');
-      return;
-    }
-
-    await handleJoinEvent();
-    setShowInviteInput(false);
-    setInviteCode('');
-  };
-
-  const handleJoinEvent = async () => {
-    if (!event || !user || !userData) return;
+    if (!event || !user) return;
 
     try {
-      if (event.capacity) {
-        const goingCount = participants.filter(
-          p => p.status === 'going',
-        ).length;
-        if (goingCount >= event.capacity) {
-          Alert.alert(
-            'Evento lleno',
-            'Este evento ha alcanzado su capacidad máxima',
-          );
+      // Refresh event to ensure latest joinMode/inviteCode
+      const eventDoc = await firestore().collection('events').doc(eventId).get();
+      if (!eventDoc.exists) {
+        Alert.alert('Evento no encontrado', 'El evento no existe');
+        return;
+      }
+      const freshEvent = { id: eventDoc.id, ...eventDoc.data() } as Event;
+
+      if (freshEvent.joinMode === 'code') {
+        const code = (inviteCode || '').trim().toUpperCase();
+        if (!code) {
+          Alert.alert('Error', 'Ingresa el código de invitación');
+          return;
+        }
+        if (freshEvent.inviteCode !== code) {
+          Alert.alert('Código inválido', 'El código de invitación no es correcto');
           return;
         }
       }
 
+      // Capacity check using current registrations with status 'going'
+      if (freshEvent.capacity) {
+        const goingSnap = await firestore()
+          .collection('eventRegistrations')
+          .where('eventId', '==', eventId)
+          .where('status', '==', 'going')
+          .get();
+        if (goingSnap.size >= freshEvent.capacity) {
+          Alert.alert('Evento lleno', 'Este evento ha alcanzado su capacidad máxima');
+          return;
+        }
+      }
+
+      // Fetch user + profile for roster entry
+      const userRef = await firestore().collection('users').doc(user.uid).get();
+      if (!userRef.exists) {
+        Alert.alert('Error de usuario', 'No se encontró tu información de usuario');
+        return;
+      }
+      const userDoc = userRef.data() as any;
+      const profileRef = await firestore().collection('profiles').doc(user.uid).get();
+      const profile = profileRef.exists() ? (profileRef.data() as any) : null;
+
+      const rosterEntry = {
+        fullName: profile?.fullName || userDoc.displayName || 'Usuario',
+        bloodType:
+          profile?.preferences?.showBloodTypePublic && profile?.bloodType
+            ? profile.bloodType
+            : null,
+        publicSlug: userDoc.slug,
+        publicUrl: null as string | null,
+        avatarUrl: userDoc.photoURL || null,
+      };
+
+      const registrationId = `${eventId}_${user.uid}`;
       const registrationData = {
         eventId,
         uid: user.uid,
         status: 'maybe' as const,
         consentEmergencyShare: false,
+        rosterEntry,
         createdAt: firestore.FieldValue.serverTimestamp(),
         updatedAt: firestore.FieldValue.serverTimestamp(),
       };
 
-      await firestore().collection('eventRegistrations').add(registrationData);
+      await firestore().collection('eventRegistrations').doc(registrationId).set(registrationData);
+      await loadEventData();
+      setShowInviteInput(false);
+      setInviteCode('');
+      Alert.alert('¡Te has unido al evento!', 'Ahora puedes confirmar tu asistencia');
+    } catch (error) {
+      console.error('Error joining with code:', error);
+      Alert.alert('Error al unirse', 'No se pudo unir al evento. Intenta de nuevo.');
+    }
+  };
+
+  const handleJoinEvent = async () => {
+    if (!event || !user) return;
+
+    try {
+      // Capacity check using current registrations with status 'going'
+      if (event.capacity) {
+        const goingSnap = await firestore()
+          .collection('eventRegistrations')
+          .where('eventId', '==', eventId)
+          .where('status', '==', 'going')
+          .get();
+        if (goingSnap.size >= event.capacity) {
+          Alert.alert('Evento lleno', 'Este evento ha alcanzado su capacidad máxima');
+          return;
+        }
+      }
+
+      // Fetch user + profile for roster entry
+      const userRef = await firestore().collection('users').doc(user.uid).get();
+      if (!userRef.exists) {
+        Alert.alert('Error de usuario', 'No se encontró tu información de usuario');
+        return;
+      }
+      const userDoc = userRef.data() as any;
+      const profileRef = await firestore().collection('profiles').doc(user.uid).get();
+      const profile = profileRef.exists() ? (profileRef.data() as any) : null;
+
+      const rosterEntry = {
+        fullName: profile?.fullName || userDoc.displayName || 'Usuario',
+        bloodType:
+          profile?.preferences?.showBloodTypePublic && profile?.bloodType
+            ? profile.bloodType
+            : null,
+        publicSlug: userDoc.slug,
+        publicUrl: null as string | null,
+        avatarUrl: userDoc.photoURL || null,
+      };
+
+      const registrationId = `${eventId}_${user.uid}`;
+      const registrationData = {
+        eventId,
+        uid: user.uid,
+        status: 'maybe' as const,
+        consentEmergencyShare: false,
+        rosterEntry,
+        createdAt: firestore.FieldValue.serverTimestamp(),
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+      };
+
+      await firestore().collection('eventRegistrations').doc(registrationId).set(registrationData);
       await loadEventData();
       Alert.alert('¡Te has unido!', 'Ahora puedes confirmar tu asistencia');
     } catch (error) {
@@ -667,7 +754,7 @@ export function EventDetailScreen({
                 <TextInput
                   style={styles.codeInput}
                   value={inviteCode}
-                  onChangeText={setInviteCode}
+                  onChangeText={(t) => setInviteCode((t || '').toUpperCase())}
                   placeholder="Ingresa el código"
                   autoCapitalize="characters"
                 />
