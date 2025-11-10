@@ -31,7 +31,7 @@ export function CheckpointsScreen({
   route,
   navigation,
 }: CheckpointsScreenProps) {
-  const { eventId, userId } = route.params;
+  const { eventId, userId, routeId } = route.params;
   const [checkpoints, setCheckpoints] = useState<GeofenceCheckpoint[]>([]);
   const [progress, setProgress] = useState<CheckpointProgress[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,27 +62,35 @@ export function CheckpointsScreen({
       // Load checkpoints - online from Firestore, otherwise from local cache
       let checkpointsData: GeofenceCheckpoint[] = [];
       if (isOnline) {
-        const checkpointsSnap = await firestore()
-        .collection('checkpoints')
-        .where('event_id', '==', eventId)
-        .where('active', '==', true)
-        .get();
-        
+        let queryRef = firestore()
+          .collection('checkpoints')
+          .where('event_id', '==', eventId)
+          .where('active', '==', true);
+
+        if (routeId) {
+          queryRef = queryRef.where('routeId', '==', routeId);
+        }
+
+        const checkpointsSnap = await queryRef.get();
+
         checkpointsData = checkpointsSnap.docs.map(doc => ({
           id: doc.id,
           ...(doc.data() as any),
         })) as unknown as GeofenceCheckpoint[];
-        
+
         // Persist remote as source of truth
         try {
-          await geofenceService.saveCheckpointsLocally(eventId, checkpointsData);
+          await geofenceService.saveCheckpointsLocally(
+            eventId,
+            checkpointsData,
+          );
           const validIds = checkpointsData.map(c => c.id);
           await syncManager.pruneLocalDataForEvent(eventId, userId, validIds);
         } catch {}
       } else {
         checkpointsData = await geofenceService.getLocalCheckpoints(eventId);
       }
-      
+
       checkpointsData = (checkpointsData || []).sort(
         (a, b) => (a.sequence || 0) - (b.sequence || 0),
       );
@@ -94,18 +102,20 @@ export function CheckpointsScreen({
       let remoteProgress: CheckpointProgress[] = [];
       if (isOnline) {
         const progressSnap = await firestore()
-        .collection('checkpointProgress')
-        .where('event_id', '==', eventId)
-        .where('uid', '==', userId)
-        .get();
+          .collection('checkpointProgress')
+          .where('event_id', '==', eventId)
+          .where('uid', '==', userId)
+          .get();
         remoteProgress = progressSnap.docs.map(doc => ({
           id: doc.id,
           ...(doc.data() as any),
         })) as unknown as CheckpointProgress[];
         // keep only progress that matches current checkpoints
-        remoteProgress = remoteProgress.filter(rp => validIdSet.has((rp as any).checkpointId));
+        remoteProgress = remoteProgress.filter(rp =>
+          validIdSet.has((rp as any).checkpointId),
+        );
       }
-      
+
       // Always include local progress so UI reflects offline ENTERs immediately
       const localProgress = await syncManager.getLocalCheckpointProgress(
         eventId,
@@ -118,7 +128,10 @@ export function CheckpointsScreen({
         byCheckpoint.set((rp as any).checkpointId, rp);
       }
       for (const lp of localProgress) {
-        if (!byCheckpoint.has(lp.checkpointId) && validIdSet.has(lp.checkpointId)) {
+        if (
+          !byCheckpoint.has(lp.checkpointId) &&
+          validIdSet.has(lp.checkpointId)
+        ) {
           byCheckpoint.set(lp.checkpointId, {
             id: `${eventId}_${userId}_${lp.checkpointId}`,
             checkpointId: lp.checkpointId,
@@ -377,32 +390,36 @@ export function CheckpointsScreen({
                                 >
                                   Entrada:{' '}
                                   {formatTimestamp(
-                                      (checkpointProgress as any).timestamp,
-                                    )}
-                                </Text>
-                              </View>
-                            )}
-
-                            {checkpointProgress && (checkpointProgress as any).exitTimestamp && (
-                              <View style={styles.stepDetailItem}>
-                                <Icon
-                                  name="log-out-outline"
-                                  size={16}
-                                  color={theme.colors.warning}
-                                />
-                                <Text
-                                  style={[
-                                    styles.stepDetailText,
-                                    { color: theme.colors.warning, fontWeight: '600' },
-                                  ]}
-                                >
-                                  Salida:{' '}
-                                  {formatTimestamp(
-                                    (checkpointProgress as any).exitTimestamp,
+                                    (checkpointProgress as any).timestamp,
                                   )}
                                 </Text>
                               </View>
                             )}
+
+                            {checkpointProgress &&
+                              (checkpointProgress as any).exitTimestamp && (
+                                <View style={styles.stepDetailItem}>
+                                  <Icon
+                                    name="log-out-outline"
+                                    size={16}
+                                    color={theme.colors.warning}
+                                  />
+                                  <Text
+                                    style={[
+                                      styles.stepDetailText,
+                                      {
+                                        color: theme.colors.warning,
+                                        fontWeight: '600',
+                                      },
+                                    ]}
+                                  >
+                                    Salida:{' '}
+                                    {formatTimestamp(
+                                      (checkpointProgress as any).exitTimestamp,
+                                    )}
+                                  </Text>
+                                </View>
+                              )}
                           </View>
                         </View>
                       </View>

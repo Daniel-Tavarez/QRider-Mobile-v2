@@ -22,7 +22,7 @@ import { theme } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { resetCompletedCheckpoints } from '../modules/geofence/GeofenceTaskManager';
 import { useGeofence } from '../modules/geofence/useGeofence';
-import { Event, EventRegistration, RootStackParamList } from '../types';
+import { Event, EventRegistration, RootStackParamList, RouteDoc } from '../types';
 
 type EventDetailScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -47,6 +47,8 @@ export function EventDetailScreen({
   const [inviteCode, setInviteCode] = useState('');
   const [showInviteInput, setShowInviteInput] = useState(false);
   const [isEventActive, setIsEventActive] = useState(false);
+  const [routes, setRoutes] = useState<RouteDoc[]>([]);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
 
   const {
     status: geofenceStatus,
@@ -144,7 +146,9 @@ export function EventDetailScreen({
         .get();
 
       if (!registrationSnap.empty) {
-        setRegistration(registrationSnap.docs[0].data() as EventRegistration);
+        const reg = registrationSnap.docs[0].data() as EventRegistration;
+        setRegistration(reg);
+        if (reg?.routeId) setSelectedRouteId(reg.routeId);
       }
 
       const participantsSnap = await firestore()
@@ -155,6 +159,22 @@ export function EventDetailScreen({
       setParticipants(
         participantsSnap.docs.map(doc => doc.data() as EventRegistration),
       );
+
+      // Load available routes if event supports multiple routes
+      if (eventData.multipleRoutes) {
+        try {
+          const routesSnap = await firestore()
+            .collection('routes')
+            .where('eventId', '==', eventId)
+            .get();
+          const list: RouteDoc[] = routesSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+          setRoutes(list);
+        } catch (e) {
+          console.warn('Error loading routes:', e);
+        }
+      } else {
+        setRoutes([]);
+      }
     } catch (error) {
       console.error('Error loading event data:', error);
       Alert.alert('Error', 'No se pudo cargar la información del evento');
@@ -189,6 +209,15 @@ export function EventDetailScreen({
         }
         if (freshEvent.inviteCode !== code) {
           Alert.alert('Código inválido', 'El código de invitación no es correcto');
+          return;
+        }
+      }
+
+      // Require route selection if multiple routes
+      if (freshEvent.multipleRoutes) {
+        const route = (selectedRouteId || '').trim();
+        if (!route) {
+          Alert.alert('Selecciona una ruta', 'Debes seleccionar una ruta para unirte');
           return;
         }
       }
@@ -231,6 +260,7 @@ export function EventDetailScreen({
       const registrationData = {
         eventId,
         uid: user.uid,
+        routeId: freshEvent.multipleRoutes ? (selectedRouteId as string) : null,
         status: 'maybe' as const,
         consentEmergencyShare: false,
         rosterEntry,
@@ -251,7 +281,6 @@ export function EventDetailScreen({
 
   const handleJoinEvent = async () => {
     if (!event || !user) return;
-
     try {
       // Capacity check using current registrations with status 'going'
       if (event.capacity) {
@@ -291,6 +320,7 @@ export function EventDetailScreen({
       const registrationData = {
         eventId,
         uid: user.uid,
+        routeId: event.multipleRoutes ? (selectedRouteId as string) : null,
         status: 'maybe' as const,
         consentEmergencyShare: false,
         rosterEntry,
@@ -409,6 +439,49 @@ export function EventDetailScreen({
       default:
         return theme.colors.gray[500];
     }
+  };
+
+   const handleLeaveEvent = async () => {
+    if (!registration || !user) return;
+    Alert.alert('Salir del evento', '¿Deseas salir de este evento?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Salir',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const registrationId = `${eventId}_${user.uid}`;
+            await firestore()
+              .collection('eventRegistrations')
+              .doc(registrationId)
+              .delete();
+            try {
+              const snapshotKey = `emergency_snapshot_${eventId}_${user.uid}`;
+              await AsyncStorage.removeItem(snapshotKey);
+            } catch {}
+            // If this event is active, stop geofencing and clear active keys
+            try {
+              const activeEventId = await AsyncStorage.getItem(
+                ACTIVE_EVENT_KEY,
+              );
+              if (activeEventId === eventId) {
+                await stopGeofencing();
+                await AsyncStorage.removeItem(ACTIVE_EVENT_KEY);
+              }
+            } catch {}
+            setRegistration(null);
+            await loadEventData();
+            Alert.alert('Listo', 'Has salido del evento');
+          } catch (error) {
+            console.error('Error leaving event:', error);
+            Alert.alert(
+              'Error al salir',
+              'No se pudo salir del evento. Intenta de nuevo.',
+            );
+          }
+        },
+      },
+    ]);
   };
 
   const getStatusText = (status: string) => {
@@ -538,6 +611,18 @@ export function EventDetailScreen({
                       <Text style={styles.linkText}>Ver ruta</Text>
                     </TouchableOpacity>
                   )}
+                </View>
+              </View>
+            )}
+
+            {registration?.routeId && routes.length > 0 && (
+              <View style={styles.detailItem}>
+                <Icon name="map" size={20} color={theme.colors.textSecondary} />
+                <View style={styles.detailContent}>
+                  <Text style={styles.detailLabel}>Ruta seleccionada</Text>
+                  <Text style={styles.detailValue}>
+                    {routes.find(r => r.id === registration.routeId)?.name || 'Ruta'}
+                  </Text>
                 </View>
               </View>
             )}
@@ -709,6 +794,7 @@ export function EventDetailScreen({
                   navigation.navigate('Checkpoints', {
                     eventId: event.id,
                     userId: user?.uid || '',
+                    routeId: registration?.routeId || null,
                   })
                 }
                 style={styles.viewCheckpointsBtn}
@@ -736,6 +822,25 @@ export function EventDetailScreen({
 
         {!registration && !isAdmin ? (
           <Card style={styles.joinCard}>
+            {event.multipleRoutes && routes.length > 0 && (
+              <View style={{ marginBottom: theme.spacing.md }}>
+                <Text style={styles.joinTitle}>Selecciona una ruta</Text>
+                {routes.map(r => (
+                  <TouchableOpacity
+                    key={r.id}
+                    style={[styles.statusButton, { borderColor: theme.colors.primary, marginBottom: 8 }]}
+                    onPress={() => setSelectedRouteId(r.id)}
+                  >
+                    <Icon
+                      name={selectedRouteId === r.id ? 'radio-button-on' : 'radio-button-off'}
+                      size={20}
+                      color={selectedRouteId === r.id ? theme.colors.primary : theme.colors.textSecondary}
+                    />
+                    <Text style={[styles.statusButtonText, { marginLeft: theme.spacing.xs }]}>{r.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
             {event.joinMode === 'code' && !showInviteInput ? (
               <View>
                 <Text style={styles.joinTitle}>Evento Privado</Text>
@@ -772,6 +877,7 @@ export function EventDetailScreen({
                     title="Unirse"
                     onPress={handleJoinWithCode}
                     style={styles.codeButton}
+                    disabled={event.multipleRoutes ? !selectedRouteId : false}
                   />
                 </View>
               </View>
@@ -785,6 +891,7 @@ export function EventDetailScreen({
                   title="Unirse al evento"
                   onPress={handleJoinEvent}
                   style={styles.joinButton}
+                  disabled={event.multipleRoutes ? !selectedRouteId : false}
                 />
               </View>
             )}
@@ -880,6 +987,17 @@ export function EventDetailScreen({
             </View>
           </Card>
         ) : null}
+
+        {registration && !isAdmin && (
+          <Button
+            title="Salir del evento"
+            onPress={handleLeaveEvent}
+            style={{
+              marginTop: theme.spacing.sm,
+              backgroundColor: theme.colors.error,
+            }}
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
   );

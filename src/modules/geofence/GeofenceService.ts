@@ -38,12 +38,15 @@ export class GeofenceService {
         // Android 13+: ask notifications permission for foreground service notification
         try {
           if (Platform.Version >= 33) {
-            const postNotif = (PermissionsAndroid as any)?.PERMISSIONS?.POST_NOTIFICATIONS;
+            const postNotif = (PermissionsAndroid as any)?.PERMISSIONS
+              ?.POST_NOTIFICATIONS;
             if (postNotif) toRequest.push(postNotif);
           }
         } catch {}
 
-        const granted = await PermissionsAndroid.requestMultiple(toRequest as any);
+        const granted = await PermissionsAndroid.requestMultiple(
+          toRequest as any,
+        );
 
         let ok =
           granted[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] ===
@@ -59,7 +62,8 @@ export class GeofenceService {
         // Android 10+: ACCESS_BACKGROUND_LOCATION
         try {
           if (Platform.Version >= 29) {
-            const bgPerm = (PermissionsAndroid as any)?.PERMISSIONS?.ACCESS_BACKGROUND_LOCATION;
+            const bgPerm = (PermissionsAndroid as any)?.PERMISSIONS
+              ?.ACCESS_BACKGROUND_LOCATION;
             if (bgPerm) {
               const bg = await PermissionsAndroid.request(bgPerm);
               if (bg !== PermissionsAndroid.RESULTS.GRANTED) {
@@ -68,8 +72,11 @@ export class GeofenceService {
                   'Para registrar checkpoints con la pantalla apagada, permite "Ubicación: Permitir todo el tiempo" y desactiva optimizaciones de batería para QRider.',
                   [
                     { text: 'Cancelar', style: 'cancel' },
-                    { text: 'Abrir Ajustes', onPress: () => Linking.openSettings() },
-                  ]
+                    {
+                      text: 'Abrir Ajustes',
+                      onPress: () => Linking.openSettings(),
+                    },
+                  ],
                 );
               }
             }
@@ -97,18 +104,26 @@ export class GeofenceService {
     }
   }
 
-  async downloadCheckpoints(eventId: string): Promise<Checkpoint[]> {
+  async downloadCheckpoints(
+    eventId: string,
+    routeId: string | null,
+  ): Promise<Checkpoint[]> {
     try {
-      const querySnapshot = await firestore()
+      let queryRef = await firestore()
         .collection('checkpoints')
         .where('event_id', '==', eventId)
-        .where('active', '==', true)
-        .get();
+        .where('active', '==', true);
+
+      if (routeId) {
+        queryRef = queryRef.where('routeId', '==', routeId);
+      }
+
+      const querySnapshot = await queryRef.get();
 
       const checkpoints: Checkpoint[] = [];
 
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      querySnapshot.forEach(doc => {
+        const data = doc.data() as any;
         checkpoints.push({
           id: doc.id,
           name: data.name,
@@ -120,6 +135,7 @@ export class GeofenceService {
           sequence: data.sequence,
           active: data.active,
           event_id: data.event_id,
+          routeId: data.routeId,
           created_at: data.created_at,
           updated_at: data.updated_at,
         });
@@ -136,11 +152,16 @@ export class GeofenceService {
     }
   }
 
-  async saveCheckpointsLocally(eventId: string, checkpoints: Checkpoint[]): Promise<void> {
+  async saveCheckpointsLocally(
+    eventId: string,
+    checkpoints: Checkpoint[],
+  ): Promise<void> {
     try {
       const key = `${CHECKPOINTS_KEY_PREFIX}${eventId}`;
       await AsyncStorage.setItem(key, JSON.stringify(checkpoints));
-      console.log(`Saved ${checkpoints.length} checkpoints locally for event ${eventId}`);
+      console.log(
+        `Saved ${checkpoints.length} checkpoints locally for event ${eventId}`,
+      );
     } catch (error) {
       console.error('Error saving checkpoints locally:', error);
     }
@@ -162,7 +183,10 @@ export class GeofenceService {
     }
   }
 
-  async shouldUpdateCheckpoints(eventId: string): Promise<boolean> {
+  async shouldUpdateCheckpoints(
+    eventId: string,
+    routeId: string | null,
+  ): Promise<boolean> {
     try {
       const localCheckpoints = await this.getLocalCheckpoints(eventId);
 
@@ -170,22 +194,30 @@ export class GeofenceService {
         return true;
       }
 
-      const querySnapshot = await firestore()
+      let queryRef = await firestore()
         .collection('checkpoints')
         .where('event_id', '==', eventId)
-        .where('active', '==', true)
-        .get();
+        .where('active', '==', true);
+
+      if (routeId) {
+        queryRef = queryRef.where('routeId', '==', routeId);
+      }
+
+      const querySnapshot = await queryRef.get();
 
       if (querySnapshot.size !== localCheckpoints.length) {
         return true;
       }
 
       let needsUpdate = false;
-      querySnapshot.forEach((doc) => {
+      querySnapshot.forEach(doc => {
         const data = doc.data();
         const localCheckpoint = localCheckpoints.find(cp => cp.id === doc.id);
 
-        if (!localCheckpoint || localCheckpoint.updated_at !== data.updated_at) {
+        if (
+          !localCheckpoint ||
+          localCheckpoint.updated_at !== data.updated_at
+        ) {
           needsUpdate = true;
         }
       });
@@ -199,7 +231,37 @@ export class GeofenceService {
 
   async registerGeofences(eventId: string, userId?: string): Promise<boolean> {
     try {
-      const checkpoints = await this.getLocalCheckpoints(eventId);
+      let checkpoints = await this.getLocalCheckpoints(eventId);
+
+      // If there is a routeId in the user's eventRegistration, filter checkpoints by that route
+      try {
+        if (userId) {
+          const regSnap = await firestore()
+            .collection('eventRegistrations')
+            .where('eventId', '==', eventId)
+            .where('uid', '==', userId)
+            .limit(1)
+            .get();
+          if (!regSnap.empty) {
+            const regData: any = regSnap.docs[0].data();
+            const selectedRouteId: string | undefined = regData?.routeId;
+            if (selectedRouteId) {
+              const filtered = checkpoints.filter((cp: any) =>
+                cp?.routeId ? cp.routeId === selectedRouteId : true,
+              );
+              if (filtered.length > 0) {
+                checkpoints = filtered as any;
+              } else {
+                console.warn(
+                  'No route-matching checkpoints found; using full checkpoint set',
+                );
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Could not apply route filter for checkpoints:', e);
+      }
 
       if (checkpoints.length === 0) {
         console.log('No checkpoints to register');
@@ -209,7 +271,7 @@ export class GeofenceService {
       // Store regions locally. NOTE: this does NOT start native geofencing.
       // Integrate a native geofencing/background-location library to get real geofence
       // callbacks (recommended: react-native-background-geolocation by TransistorSoft)
-      const regions: GeofenceRegion[] = checkpoints.map((checkpoint) => ({
+      const regions: GeofenceRegion[] = checkpoints.map(checkpoint => ({
         identifier: checkpoint.id,
         latitude: checkpoint.latitude,
         longitude: checkpoint.longitude,
@@ -218,7 +280,10 @@ export class GeofenceService {
         notifyOnExit: checkpoint.notify_on_exit,
       }));
 
-      await AsyncStorage.setItem(`${CHECKPOINTS_KEY_PREFIX}${eventId}`, JSON.stringify(checkpoints));
+      await AsyncStorage.setItem(
+        `${CHECKPOINTS_KEY_PREFIX}${eventId}`,
+        JSON.stringify(checkpoints),
+      );
       await AsyncStorage.setItem(ACTIVE_EVENT_ID_KEY, eventId);
       await AsyncStorage.setItem(GEOFENCES_ACTIVE_KEY, 'true');
 
@@ -231,7 +296,9 @@ export class GeofenceService {
         console.warn('Failed to start GeofenceMonitor:', e);
       }
 
-      console.log(`Saved ${regions.length} geofences for event ${eventId} (native geofencing NOT started)`);
+      console.log(
+        `Saved ${regions.length} geofences for event ${eventId} (native geofencing NOT started)`,
+      );
 
       return true;
     } catch (error) {
@@ -246,7 +313,9 @@ export class GeofenceService {
       // geofencing library, call its stop/teardown method here.
       await AsyncStorage.removeItem(ACTIVE_EVENT_ID_KEY);
       await AsyncStorage.setItem(GEOFENCES_ACTIVE_KEY, 'false');
-      try { geofenceMonitor.stop(); } catch {}
+      try {
+        geofenceMonitor.stop();
+      } catch {}
       console.log('Geofencing stopped (native geofencing was not active)');
     } catch (error) {
       console.error('Error stopping geofencing:', error);
@@ -271,11 +340,13 @@ export class GeofenceService {
   }
 
   async getCurrentLocation(): Promise<any | null> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       try {
         // Use global geolocation if available. For better accuracy on Android, consider
         // installing react-native-geolocation-service and configuring native permissions.
-  const geo: any = (globalThis as any).navigator?.geolocation || (globalThis as any).geolocation;
+        const geo: any =
+          (globalThis as any).navigator?.geolocation ||
+          (globalThis as any).geolocation;
 
         if (geo && typeof geo.getCurrentPosition === 'function') {
           geo.getCurrentPosition(
@@ -286,7 +357,7 @@ export class GeofenceService {
               console.error('Error getting current location:', err);
               resolve(null);
             },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 }
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 1000 },
           );
         } else {
           console.warn('No geolocation available on this platform');
