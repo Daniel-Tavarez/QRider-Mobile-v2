@@ -22,7 +22,12 @@ import { theme } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { resetCompletedCheckpoints } from '../modules/geofence/GeofenceTaskManager';
 import { useGeofence } from '../modules/geofence/useGeofence';
-import { Event, EventRegistration, RootStackParamList, RouteDoc } from '../types';
+import {
+  Event,
+  EventRegistration,
+  RootStackParamList,
+  RouteDoc,
+} from '../types';
 
 type EventDetailScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -36,11 +41,12 @@ export function EventDetailScreen({
   navigation,
 }: EventDetailScreenProps) {
   const { eventId } = route.params;
-  const { user, userData } = useAuth();
+  const { user } = useAuth();
   const [event, setEvent] = useState<Event | null>(null);
   const [registration, setRegistration] = useState<EventRegistration | null>(
     null,
   );
+  console.log(registration);
   const [participants, setParticipants] = useState<EventRegistration[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -49,6 +55,23 @@ export function EventDetailScreen({
   const [isEventActive, setIsEventActive] = useState(false);
   const [routes, setRoutes] = useState<RouteDoc[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [selectedRouteName, setSelectedRouteName] = useState<string | null>(
+    null,
+  );
+
+  const getRouteById = async (id: string): Promise<RouteDoc | null> => {
+    try {
+      const docSnap = await firestore().collection('routes').doc(id).get();
+      if (docSnap.exists()) {
+        const data = docSnap.data() as any;
+        return { ...(data as RouteDoc) } as RouteDoc;
+      }
+      return null;
+    } catch (e) {
+      console.warn('getRouteById error:', e);
+      return null;
+    }
+  };
 
   const {
     status: geofenceStatus,
@@ -148,7 +171,14 @@ export function EventDetailScreen({
       if (!registrationSnap.empty) {
         const reg = registrationSnap.docs[0].data() as EventRegistration;
         setRegistration(reg);
-        if (reg?.routeId) setSelectedRouteId(reg.routeId);
+        if (reg?.routeId) {
+          setSelectedRouteId(reg.routeId);
+          // Fetch route name directly by id to ensure display even if list not yet loaded
+          try {
+            const rt = await getRouteById(reg.routeId);
+            if (rt?.name) setSelectedRouteName(rt.name);
+          } catch {}
+        }
       }
 
       const participantsSnap = await firestore()
@@ -167,8 +197,16 @@ export function EventDetailScreen({
             .collection('routes')
             .where('eventId', '==', eventId)
             .get();
-          const list: RouteDoc[] = routesSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+          const list: RouteDoc[] = routesSnap.docs.map(d => ({
+            id: d.id,
+            ...(d.data() as any),
+          }));
           setRoutes(list);
+          // If we have a selectedRouteId, ensure we have its name
+          if (selectedRouteId && !selectedRouteName) {
+            const found = list.find(r => r.id === selectedRouteId);
+            if (found?.name) setSelectedRouteName(found.name);
+          }
         } catch (e) {
           console.warn('Error loading routes:', e);
         }
@@ -194,7 +232,10 @@ export function EventDetailScreen({
 
     try {
       // Refresh event to ensure latest joinMode/inviteCode
-      const eventDoc = await firestore().collection('events').doc(eventId).get();
+      const eventDoc = await firestore()
+        .collection('events')
+        .doc(eventId)
+        .get();
       if (!eventDoc.exists) {
         Alert.alert('Evento no encontrado', 'El evento no existe');
         return;
@@ -208,7 +249,10 @@ export function EventDetailScreen({
           return;
         }
         if (freshEvent.inviteCode !== code) {
-          Alert.alert('Código inválido', 'El código de invitación no es correcto');
+          Alert.alert(
+            'Código inválido',
+            'El código de invitación no es correcto',
+          );
           return;
         }
       }
@@ -217,7 +261,10 @@ export function EventDetailScreen({
       if (freshEvent.multipleRoutes) {
         const route = (selectedRouteId || '').trim();
         if (!route) {
-          Alert.alert('Selecciona una ruta', 'Debes seleccionar una ruta para unirte');
+          Alert.alert(
+            'Selecciona una ruta',
+            'Debes seleccionar una ruta para unirte',
+          );
           return;
         }
       }
@@ -230,7 +277,10 @@ export function EventDetailScreen({
           .where('status', '==', 'going')
           .get();
         if (goingSnap.size >= freshEvent.capacity) {
-          Alert.alert('Evento lleno', 'Este evento ha alcanzado su capacidad máxima');
+          Alert.alert(
+            'Evento lleno',
+            'Este evento ha alcanzado su capacidad máxima',
+          );
           return;
         }
       }
@@ -238,11 +288,17 @@ export function EventDetailScreen({
       // Fetch user + profile for roster entry
       const userRef = await firestore().collection('users').doc(user.uid).get();
       if (!userRef.exists) {
-        Alert.alert('Error de usuario', 'No se encontró tu información de usuario');
+        Alert.alert(
+          'Error de usuario',
+          'No se encontró tu información de usuario',
+        );
         return;
       }
       const userDoc = userRef.data() as any;
-      const profileRef = await firestore().collection('profiles').doc(user.uid).get();
+      const profileRef = await firestore()
+        .collection('profiles')
+        .doc(user.uid)
+        .get();
       const profile = profileRef.exists() ? (profileRef.data() as any) : null;
 
       const rosterEntry = {
@@ -268,14 +324,23 @@ export function EventDetailScreen({
         updatedAt: firestore.FieldValue.serverTimestamp(),
       };
 
-      await firestore().collection('eventRegistrations').doc(registrationId).set(registrationData);
+      await firestore()
+        .collection('eventRegistrations')
+        .doc(registrationId)
+        .set(registrationData);
       await loadEventData();
       setShowInviteInput(false);
       setInviteCode('');
-      Alert.alert('¡Te has unido al evento!', 'Ahora puedes confirmar tu asistencia');
+      Alert.alert(
+        '¡Te has unido al evento!',
+        'Ahora puedes confirmar tu asistencia',
+      );
     } catch (error) {
       console.error('Error joining with code:', error);
-      Alert.alert('Error al unirse', 'No se pudo unir al evento. Intenta de nuevo.');
+      Alert.alert(
+        'Error al unirse',
+        'No se pudo unir al evento. Intenta de nuevo.',
+      );
     }
   };
 
@@ -290,7 +355,10 @@ export function EventDetailScreen({
           .where('status', '==', 'going')
           .get();
         if (goingSnap.size >= event.capacity) {
-          Alert.alert('Evento lleno', 'Este evento ha alcanzado su capacidad máxima');
+          Alert.alert(
+            'Evento lleno',
+            'Este evento ha alcanzado su capacidad máxima',
+          );
           return;
         }
       }
@@ -298,11 +366,17 @@ export function EventDetailScreen({
       // Fetch user + profile for roster entry
       const userRef = await firestore().collection('users').doc(user.uid).get();
       if (!userRef.exists) {
-        Alert.alert('Error de usuario', 'No se encontró tu información de usuario');
+        Alert.alert(
+          'Error de usuario',
+          'No se encontró tu información de usuario',
+        );
         return;
       }
       const userDoc = userRef.data() as any;
-      const profileRef = await firestore().collection('profiles').doc(user.uid).get();
+      const profileRef = await firestore()
+        .collection('profiles')
+        .doc(user.uid)
+        .get();
       const profile = profileRef.exists() ? (profileRef.data() as any) : null;
 
       const rosterEntry = {
@@ -328,7 +402,10 @@ export function EventDetailScreen({
         updatedAt: firestore.FieldValue.serverTimestamp(),
       };
 
-      await firestore().collection('eventRegistrations').doc(registrationId).set(registrationData);
+      await firestore()
+        .collection('eventRegistrations')
+        .doc(registrationId)
+        .set(registrationData);
       await loadEventData();
       Alert.alert('¡Te has unido!', 'Ahora puedes confirmar tu asistencia');
     } catch (error) {
@@ -441,7 +518,7 @@ export function EventDetailScreen({
     }
   };
 
-   const handleLeaveEvent = async () => {
+  const handleLeaveEvent = async () => {
     if (!registration || !user) return;
     Alert.alert('Salir del evento', '¿Deseas salir de este evento?', [
       { text: 'Cancelar', style: 'cancel' },
@@ -615,18 +692,6 @@ export function EventDetailScreen({
               </View>
             )}
 
-            {registration?.routeId && routes.length > 0 && (
-              <View style={styles.detailItem}>
-                <Icon name="map" size={20} color={theme.colors.textSecondary} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Ruta seleccionada</Text>
-                  <Text style={styles.detailValue}>
-                    {routes.find(r => r.id === registration.routeId)?.name || 'Ruta'}
-                  </Text>
-                </View>
-              </View>
-            )}
-
             {event.capacity && (
               <View style={styles.detailItem}>
                 <Icon
@@ -699,7 +764,7 @@ export function EventDetailScreen({
           )}
         </Card>
 
-        {/* <Card style={styles.summaryCard}>
+        <Card style={styles.summaryCard}>
           <Text style={styles.sectionTitle}>Participantes</Text>
           <Text style={styles.summaryText}>
             Ve quién más va al evento y accede a sus perfiles públicos.
@@ -731,7 +796,7 @@ export function EventDetailScreen({
               />
             </>
           )}
-        </Card> */}
+        </Card>
 
         {isAdmin && event.inviteCode && (
           <Card style={styles.adminCard}>
@@ -774,6 +839,23 @@ export function EventDetailScreen({
                 ? 'El seguimiento de tu ubicación está activo. Los checkpoints se registrarán automáticamente.'
                 : 'Inicia el evento para comenzar el seguimiento de checkpoints.'}
             </Text>
+
+            {registration?.routeId && (
+              <View
+                style={[styles.detailItem, { marginBottom: theme.spacing.md }]}
+              >
+                <View style={styles.detailContentRoute}>
+                  <Text style={[styles.detailLabel, { marginTop: 5 }]}>
+                    Ruta seleccionada:{' '}
+                  </Text>
+                  <Text style={styles.detailValue}>
+                    {selectedRouteName ||
+                      routes.find(r => r.id === registration.routeId)?.name ||
+                      'Ruta'}
+                  </Text>
+                </View>
+              </View>
+            )}
 
             <Button
               title={isEventActive ? 'Detener Evento' : 'Iniciar Evento'}
@@ -828,15 +910,23 @@ export function EventDetailScreen({
                 {routes.map(r => (
                   <TouchableOpacity
                     key={r.id}
-                    style={[styles.statusButton, { borderColor: theme.colors.primary, marginBottom: 8 }]}
-                    onPress={() => setSelectedRouteId(r.id)}
+                    style={[
+                      selectedRouteId === r.id
+                        ? styles.statusButtonRouteSelected
+                        : styles.statusButton,
+                    ]}
+                    onPress={() => {
+                      setSelectedRouteId(r.id);
+                      setSelectedRouteName(r.name || null);
+                    }}
                   >
-                    <Icon
-                      name={selectedRouteId === r.id ? 'radio-button-on' : 'radio-button-off'}
-                      size={20}
-                      color={selectedRouteId === r.id ? theme.colors.primary : theme.colors.textSecondary}
-                    />
-                    <Text style={[styles.statusButtonText, { marginLeft: theme.spacing.xs }]}>{r.name}</Text>
+                    <Text
+                      style={[
+                        selectedRouteId === r.id ? styles.statusButtonTextActiveRoute : styles.statusButtonText
+                      ]}
+                    >
+                      {r.name}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -859,7 +949,7 @@ export function EventDetailScreen({
                 <TextInput
                   style={styles.codeInput}
                   value={inviteCode}
-                  onChangeText={(t) => setInviteCode((t || '').toUpperCase())}
+                  onChangeText={t => setInviteCode((t || '').toUpperCase())}
                   placeholder="Ingresa el código"
                   autoCapitalize="characters"
                 />
@@ -994,6 +1084,7 @@ export function EventDetailScreen({
             onPress={handleLeaveEvent}
             style={{
               marginTop: theme.spacing.sm,
+              marginBottom: theme.spacing.xxl,
               backgroundColor: theme.colors.error,
             }}
           />
@@ -1070,6 +1161,12 @@ const styles = StyleSheet.create({
   detailContent: {
     flex: 1,
     marginLeft: theme.spacing.md,
+  },
+  detailContentRoute: {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   detailLabel: {
     fontSize: theme.typography.small.fontSize,
@@ -1178,7 +1275,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E3F2FD',
     borderLeftWidth: 4,
     borderLeftColor: theme.colors.info,
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.xxl,
   },
   joinTitle: {
     fontSize: theme.typography.h4.fontSize,
@@ -1217,7 +1314,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F5E8',
     borderLeftWidth: 4,
     borderLeftColor: theme.colors.success,
-    marginBottom: theme.spacing.xxl,
+    marginBottom: theme.spacing.lg,
   },
   statusTitle: {
     fontSize: theme.typography.h4.fontSize,
@@ -1238,6 +1335,18 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     borderWidth: 2,
     backgroundColor: theme.colors.white,
+    marginBottom: theme.spacing.sm,
+  },
+  statusButtonRouteSelected: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 0,
+    backgroundColor: theme.colors.primary,
+    marginBottom: theme.spacing.sm,
   },
   statusButtonActive: {
     backgroundColor: theme.colors.success,
@@ -1250,6 +1359,10 @@ const styles = StyleSheet.create({
   },
   statusButtonTextActive: {
     color: theme.colors.white,
+  },
+  statusButtonTextActiveRoute: {
+    color: theme.colors.white,
+    fontWeight: '600',
   },
   eventControlCard: {
     marginBottom: theme.spacing.lg,
