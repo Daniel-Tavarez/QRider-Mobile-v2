@@ -89,6 +89,12 @@ class GeofenceMonitor {
       const inside: InsideState = insideJson ? JSON.parse(insideJson) : {};
       const lastTs: LastEventTs = lastTsJson ? JSON.parse(lastTsJson) : {};
 
+      // Load local progress to prevent duplicate ENTER/EXIT per checkpoint
+      const enteredList = await syncManager.getLocalCheckpointProgress(this.activeEventId, this.userId);
+      const exitedList = await syncManager.getLocalExitProgress(this.activeEventId, this.userId);
+      const enteredSet = new Set((enteredList || []).map(p => p.checkpointId));
+      const exitedSet = new Set((exitedList || []).map(p => p.checkpointId));
+
       for (const cp of this.checkpoints) {
         const wasInside = !!inside[cp.id];
         const dist = this.distanceMeters(latitude, longitude, cp.latitude, cp.longitude);
@@ -111,17 +117,23 @@ class GeofenceMonitor {
           return true;
         };
 
-        // Hysteresis para evitar rebotes en el borde del radio
-        const hysteresis = Math.min(25, Math.max(10, cp.radius * 0.1));
-        const enterThreshold = Math.max(0, cp.radius - hysteresis);
-        const exitThreshold = cp.radius + hysteresis;
+        // Hysteresis suave para evitar rebotes y no perder salidas
+        const exitHysteresis = Math.max(3, Math.min(10, cp.radius * 0.05));
+        const enterThreshold = cp.radius; // entrar cuando esté dentro del radio
+        const exitThreshold = cp.radius + exitHysteresis; // salir cuando exceda ligeramente el radio
+        const notifyEnter = (cp as any).notify_on_enter !== false;
+        const notifyExit = (cp as any).notify_on_exit !== false;
+
+        // Debug (puedes comentar estas líneas si hacen mucho ruido)
+        // console.log(`[GF] cp=${cp.name} dist=${dist.toFixed(1)}m wasInside=${wasInside} enter<=${enterThreshold} exit>=${exitThreshold}`);
 
         if (!wasInside) {
           // Considerar entrada solo cuando cruza claramente por debajo del umbral
           if (dist <= enterThreshold) {
-            if (cp.notify_on_enter && cooledDownFor('ENTER')) {
+            if (notifyEnter && cooledDownFor('ENTER') && !enteredSet.has(cp.id)) {
               await this.emitEvent('ENTER', cp, latitude, longitude);
               lastTs[cp.id] = { t: now, type: 'ENTER' } as any;
+              enteredSet.add(cp.id);
             }
             inside[cp.id] = true;
           } else {
@@ -130,9 +142,10 @@ class GeofenceMonitor {
         } else {
           // Considerar salida solo cuando cruza claramente por encima del umbral
           if (dist >= exitThreshold) {
-            if (cp.notify_on_exit && cooledDownFor('EXIT')) {
+            if (notifyExit && cooledDownFor('EXIT') && !exitedSet.has(cp.id)) {
               await this.emitEvent('EXIT', cp, latitude, longitude);
               lastTs[cp.id] = { t: now, type: 'EXIT' } as any;
+              exitedSet.add(cp.id);
             }
             inside[cp.id] = false;
           } else {

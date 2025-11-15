@@ -9,6 +9,7 @@ export type Checkpoint = {
   sequence: number;
   active: boolean;
   event_id: string;
+  routeId?: string;
   created_at: string;
   updated_at: string;
 };

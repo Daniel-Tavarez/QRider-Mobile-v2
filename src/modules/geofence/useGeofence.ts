@@ -1,3 +1,4 @@
+import firestore from '@react-native-firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, AppState, AppStateStatus, Linking, Platform } from 'react-native';
 import { TrackingService } from '../../lib/TrackingService.android';
@@ -19,36 +20,74 @@ export const useGeofence = (eventId: string, userId: string) => {
   const [recentEvents, setRecentEvents] = useState<GeofenceEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [routeId, setRouteId] = useState<string | null>(null);
+  const [multipleRoutes, setMultipleRoutes] = useState<boolean>(false);
+
+  const loadRouteContext = useCallback(async () => {
+    try {
+      const eventDoc = await firestore().collection('events').doc(eventId).get();
+      const eventData: any = eventDoc.exists() ? eventDoc.data() : null;
+      const hasMultiple = !!eventData?.multipleRoutes;
+      setMultipleRoutes(hasMultiple);
+
+      if (!hasMultiple || !userId) {
+        setRouteId(null);
+        return null;
+      }
+      const regSnap = await firestore()
+        .collection('eventRegistrations')
+        .where('eventId', '==', eventId)
+        .where('uid', '==', userId)
+        .limit(1)
+        .get();
+      if (!regSnap.empty) {
+        const rid: string | null = (regSnap.docs[0].data() as any)?.routeId || null;
+        setRouteId(rid);
+        return rid;
+      }
+      setRouteId(null);
+      return null;
+    } catch (e) {
+      console.warn('useGeofence: failed to load route context', e);
+      setMultipleRoutes(false);
+      setRouteId(null);
+      return null;
+    }
+  }, [eventId, userId]);
 
   const updateStatus = useCallback(async () => {
     try {
       const isActive = await geofenceService.isGeofencingActive();
-      const localCheckpoints = await geofenceService.getLocalCheckpoints(eventId);
+      const local = await geofenceService.getLocalCheckpoints(eventId);
+      const filtered = multipleRoutes && routeId
+        ? (local || []).filter((cp: any) => !cp?.routeId || cp.routeId === routeId)
+        : local;
       const pendingCount = await syncManager.getPendingEventsCount();
       const isOnline = await syncManager.isOnline();
 
       setStatus({
         isActive,
-        checkpointsCount: localCheckpoints.length,
+        checkpointsCount: filtered.length,
         lastSync: null,
         pendingEvents: pendingCount,
         isOnline,
       });
 
-      setCheckpoints(localCheckpoints);
+      setCheckpoints(filtered);
 
       const events = await syncManager.getAllEvents(eventId);
       setRecentEvents(events.slice(0, 10));
     } catch (err) {
       console.error('Error updating status:', err);
     }
-  }, [eventId]);
+  }, [eventId, multipleRoutes, routeId]);
 
   const initializeGeofencing = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
+      const currentRouteId = await loadRouteContext();
       defineGeofenceTask(userId);
 
       const hasPermissions = await geofenceService.requestPermissions();
@@ -67,13 +106,13 @@ export const useGeofence = (eventId: string, userId: string) => {
         }
       }
 
-      const shouldUpdate = await geofenceService.shouldUpdateCheckpoints(eventId);
+      const shouldUpdate = await geofenceService.shouldUpdateCheckpoints(eventId, currentRouteId || routeId);
 
       let downloadedCheckpoints: Checkpoint[];
 
       if (shouldUpdate) {
         console.log('Downloading fresh checkpoints...');
-        downloadedCheckpoints = await geofenceService.downloadCheckpoints(eventId);
+        downloadedCheckpoints = await geofenceService.downloadCheckpoints(eventId, currentRouteId || routeId);
       } else {
         console.log('Using cached checkpoints...');
         downloadedCheckpoints = await geofenceService.getLocalCheckpoints(eventId);
@@ -119,7 +158,7 @@ export const useGeofence = (eventId: string, userId: string) => {
     } finally {
       setLoading(false);
     }
-  }, [eventId, userId, updateStatus]);
+  }, [eventId, userId, routeId, multipleRoutes, loadRouteContext, updateStatus]);
 
   const stopGeofencing = useCallback(async () => {
     try {
@@ -151,7 +190,8 @@ export const useGeofence = (eventId: string, userId: string) => {
   const reloadCheckpoints = useCallback(async () => {
     setLoading(true);
     try {
-      const downloadedCheckpoints = await geofenceService.downloadCheckpoints(eventId);
+      const currentRouteId = await loadRouteContext();
+      const downloadedCheckpoints = await geofenceService.downloadCheckpoints(eventId, currentRouteId || routeId);
 
       if (downloadedCheckpoints.length > 0) {
         const isActive = await geofenceService.isGeofencingActive();
@@ -169,9 +209,10 @@ export const useGeofence = (eventId: string, userId: string) => {
     } finally {
       setLoading(false);
     }
-  }, [eventId, updateStatus]);
+  }, [eventId, routeId, multipleRoutes, loadRouteContext, updateStatus]);
 
   useEffect(() => {
+    loadRouteContext().finally(() => {});
     updateStatus();
 
     const interval = setInterval(() => {
@@ -194,7 +235,7 @@ export const useGeofence = (eventId: string, userId: string) => {
       clearInterval(interval);
       subscription.remove();
     };
-  }, [updateStatus, eventId, userId]);
+  }, [updateStatus, eventId, userId, loadRouteContext]);
 
   return {
     status,

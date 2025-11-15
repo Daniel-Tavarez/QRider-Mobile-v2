@@ -117,6 +117,7 @@ export interface Event {
   createdBy: string;
   joinMode: 'public' | 'code';
   inviteCode?: string;
+  multipleRoutes?: boolean;
   capacity?: number;
   window?: {
     start: {
@@ -136,10 +137,19 @@ export interface EventRegistration {
   id?: string;
   eventId: string;
   uid: string;
+  routeId?: string;
   status: 'going' | 'maybe' | 'notgoing';
   consentEmergencyShare: boolean;
   createdAt: FirebaseFirestoreTypes.Timestamp;
   updatedAt: FirebaseFirestoreTypes.Timestamp;
+}
+
+export interface RouteDoc {
+  id: string;
+  name: string;
+  description?: string;
+  eventId: string;
+  active?: boolean;
 }
 
 export interface Checkpoint {
@@ -176,5 +186,5 @@ export type RootStackParamList = {
   EventDetail: { eventId: string };
   GeofenceDebug: { eventId: string; userId: string };
   Participants: { eventId: string };
-  Checkpoints: { eventId: string; userId: string };
+  Checkpoints: { eventId: string; userId: string, routeId: string | null };
 };
