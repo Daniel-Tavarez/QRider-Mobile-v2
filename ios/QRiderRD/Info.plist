@@ -28,18 +28,19 @@
 	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-	  <!-- Do not change NSAllowsArbitraryLoads to true, or you will risk app rejection! -->
 		<key>NSAllowsArbitraryLoads</key>
 		<false/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Necesitamos tu ubicación para registrar tu paso por los checkpoints durante el evento.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Permite a QRider acceder a tu ubicación en todo momento para asegurar el registro de checkpoints incluso con la app en segundo plano.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Permite a QRider acceder a tu ubicación en todo momento para asegurar el registro de checkpoints incluso con la app en segundo plano.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Necesitamos tu ubicación para registrar tu paso por los checkpoints durante el evento.</string>
+	<key>RCTNewArchEnabled</key>
+	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
