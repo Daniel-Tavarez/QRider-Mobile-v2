@@ -1,4 +1,3 @@
-#import <React-Core/RCTBridgeModule.h>
-#import <React-Core/RCTViewManager.h>
-#import <React-Core/RCTEventEmitter.h>
-#import <RCTAppDelegate/RCTAppDelegate.h>
+#import <React/RCTBridgeModule.h>
+#import <React/RCTViewManager.h>
+#import <React/RCTEventEmitter.h>
