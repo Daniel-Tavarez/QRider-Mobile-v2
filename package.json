@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "android": "react-native run-android",
-    "ios": "react-native run-ios --scheme QRiderRD --xcodeproj ios/QRiderRD.xcodeproj",
+    "ios": "react-native run-ios --scheme QRiderRD",
     "ios:setup": "cd ios && pod install && cd ..",
     "ios:clean": "cd ios && rm -rf Pods Podfile.lock && pod install && cd ..",
     "ios:fix": "./FIX_IOS.sh",

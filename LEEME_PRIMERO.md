@@ -60,7 +60,7 @@ open ios/QRiderRD.xcworkspace
 El `package.json` ahora tiene el comando correcto:
 
 ```json
-"ios": "react-native run-ios --scheme QRiderRD --xcodeproj ios/QRiderRD.xcodeproj"
+"ios": "react-native run-ios --scheme QRiderRD"
 ```
 
 Solo ejecuta:
