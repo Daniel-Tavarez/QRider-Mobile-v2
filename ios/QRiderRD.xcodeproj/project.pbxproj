@@ -12,6 +12,9 @@
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		FBCFDE7EBFF88FBEA0541CCD /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
+		3E8975464ADF4B89804039F2 /* TrackingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945243E5DE054FC199019055 /* TrackingService.swift */; };
+		18B21F3B198F43E1B939E888 /* TrackingServiceBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 6DBBEA3DADCF47F180AAD37F /* TrackingServiceBridge.m */; };
+		C17F17C7EECB4185ACBEFF0F /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 50B589A044974479B892EFC2 /* GoogleService-Info.plist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -25,6 +28,10 @@
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = QRiderRD/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = QRiderRD/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		945243E5DE054FC199019055 /* TrackingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TrackingService.swift; path = QRiderRD/TrackingService.swift; sourceTree = "<group>"; };
+		6DBBEA3DADCF47F180AAD37F /* TrackingServiceBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = TrackingServiceBridge.m; path = QRiderRD/TrackingServiceBridge.m; sourceTree = "<group>"; };
+		867C0CAF360E4368A1C6794E /* QRiderRD-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "QRiderRD-Bridging-Header.h"; path = "QRiderRD/QRiderRD-Bridging-Header.h"; sourceTree = "<group>"; };
+		50B589A044974479B892EFC2 /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -42,7 +49,11 @@
 		13B07FAE1A68108700A75B9A /* QRiderRD */ = {
 			isa = PBXGroup;
 			children = (
-				13B07FB51A68108700A75B9A /* Images.xcassets */,
+								945243E5DE054FC199019055 /* TrackingService.swift */,
+				6DBBEA3DADCF47F180AAD37F /* TrackingServiceBridge.m */,
+				867C0CAF360E4368A1C6794E /* QRiderRD-Bridging-Header.h */,
+				50B589A044974479B892EFC2 /* GoogleService-Info.plist */,
+13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
@@ -162,7 +173,8 @@
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				FBCFDE7EBFF88FBEA0541CCD /* PrivacyInfo.xcprivacy in Resources */,
-			);
+			
+				C17F17C7EECB4185ACBEFF0F /* GoogleService-Info.plist in Resources */,);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
@@ -260,7 +272,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
+								3E8975464ADF4B89804039F2 /* TrackingService.swift in Sources */,
+				18B21F3B198F43E1B939E888 /* TrackingServiceBridge.m in Sources */,
+761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -287,10 +301,11 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.qriderrd;
 				PRODUCT_NAME = QRiderRD;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
+				SWIFT_OBJC_BRIDGING_HEADER = "QRiderRD/QRiderRD-Bridging-Header.h";
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
@@ -314,9 +329,10 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.qriderrd;
 				PRODUCT_NAME = QRiderRD;
 				SWIFT_VERSION = 5.0;
+				SWIFT_OBJC_BRIDGING_HEADER = "QRiderRD/QRiderRD-Bridging-Header.h";
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
