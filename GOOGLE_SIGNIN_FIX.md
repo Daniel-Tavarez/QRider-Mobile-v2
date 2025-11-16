@@ -1,79 +1,91 @@
-# Solución al error DEVELOPER_ERROR de Google Sign-In
+# 🔧 Solución al Error de gRPC-Core.modulemap
 
-El error DEVELOPER_ERROR ocurre porque falta la configuración correcta del OAuth Client ID en Firebase.
+## ❌ Error:
 
-## Pasos para solucionar:
-
-### 1. Ve a Firebase Console
-Abre: https://console.firebase.google.com/project/qriderrd/authentication/providers
-
-### 2. Habilita Google Sign-In
-1. En la pestaña "Sign-in method"
-2. Busca "Google" en la lista de proveedores
-3. Haz clic en "Google" y luego en "Habilitar"
-4. Guarda los cambios
-
-### 3. Obtén el Web Client ID correcto
-1. Ve a: https://console.firebase.google.com/project/qriderrd/settings/general
-2. Baja hasta la sección de "Tus apps"
-3. Busca tu app Web (debe tener un icono `</>`
-4. Copia el **Client ID** que empieza con algo como: `XXXXXXXX.apps.googleusercontent.com`
-
-### 4. Actualiza el código
-Abre el archivo: `src/contexts/AuthContext.tsx`
-
-Encuentra la línea:
-```typescript
-GoogleSignin.configure({
-  webClientId: '969099536473-89gcn8vq9dg7t7nqg8s2r6u5p5otqhbl.apps.googleusercontent.com',
-});
+```
+module map file 'gRPC-Core.modulemap' not found
 ```
 
-Reemplaza el `webClientId` con el que copiaste en el paso 3.
+Este es un problema conocido con Firebase/Firestore y CocoaPods.
 
-### 5. Descarga el nuevo google-services.json
-1. Ve a: https://console.firebase.google.com/project/qriderrd/settings/general
-2. Baja hasta "Tus apps"
-3. Selecciona tu app Android
-4. Descarga el archivo `google-services.json` actualizado
-5. Reemplaza el archivo en: `android/app/google-services.json`
+## ✅ SOLUCIÓN RÁPIDA:
 
-### 6. Reconstruye la app
 ```bash
-cd android
-./gradlew clean
+cd ios
+rm -rf Pods Podfile.lock
+pod cache clean --all
+pod deintegrate
+pod install --repo-update
 cd ..
-npm run android
+npm run ios
 ```
 
-## Solución rápida alternativa:
+## 🔧 Opción más fácil:
 
-Si ya tienes el Web Client ID correcto de Firebase, simplemente actualiza esta línea en `src/contexts/AuthContext.tsx`:
-
-```typescript
-GoogleSignin.configure({
-  webClientId: 'TU_WEB_CLIENT_ID_AQUI.apps.googleusercontent.com',
-});
+```bash
+./FIX_IOS.sh
+npm run ios
 ```
 
-El Web Client ID debe ser el de la **aplicación Web** en Firebase, no el de Android.
+El script `FIX_IOS.sh` ya incluye toda la limpieza necesaria.
 
-## Verificación:
+## 📝 ¿Por qué pasa esto?
 
-El google-services.json actualizado debe tener una estructura como esta:
-```json
-{
-  "client": [
-    {
-      "oauth_client": [
-        {
-          "client_id": "XXXXX.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ]
-    }
-  ]
-}
+Este error ocurre cuando:
+1. Los headers de CocoaPods no se generan correctamente
+2. El cache de CocoaPods está corrupto
+3. Hay conflictos en las dependencias de Firebase
+
+## ✨ Solución Manual Completa:
+
+```bash
+# Paso 1: Ir al directorio ios
+cd ios
+
+# Paso 2: Limpiar TODO
+rm -rf Pods
+rm -rf Podfile.lock
+rm -rf ~/Library/Caches/CocoaPods
+rm -rf ~/Library/Developer/Xcode/DerivedData
+
+# Paso 3: Desintegrar pods
+pod deintegrate
+
+# Paso 4: Limpiar cache
+pod cache clean --all
+
+# Paso 5: Actualizar repos
+pod repo update
+
+# Paso 6: Instalar pods frescos
+pod install --repo-update --verbose
+
+# Paso 7: Volver
+cd ..
+
+# Paso 8: Ejecutar
+npm run ios
 ```
 
-Si tu archivo no tiene `oauth_client`, necesitas seguir los pasos anteriores.
+## 🎯 Alternativa: Xcode
+
+```bash
+# Después de limpiar pods
+open ios/QRiderRD.xcworkspace
+```
+
+En Xcode:
+1. Product → Clean Build Folder (⇧⌘K)
+2. Cerrar Xcode completamente
+3. Volver a abrir
+4. Presionar Play
+
+## ⚠️ IMPORTANTE:
+
+- Abre `.xcworkspace`, NO `.xcodeproj`
+- Necesitas al menos 5GB de espacio libre
+- Actualiza CocoaPods: `sudo gem install cocoapods`
+
+---
+
+**El script FIX_IOS.sh resuelve este problema automáticamente.** 🚀

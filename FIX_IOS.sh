@@ -41,20 +41,33 @@ echo "🧹 Limpiando pods antiguos..."
 rm -rf Pods
 rm -rf Podfile.lock
 rm -rf ~/Library/Caches/CocoaPods
+rm -rf ~/Library/Developer/Xcode/DerivedData
 
 echo ""
-echo "📦 Instalando CocoaPods si no está instalado..."
+echo "📦 Verificando CocoaPods..."
 if ! command -v pod &> /dev/null; then
     echo "   Instalando CocoaPods..."
     sudo gem install cocoapods
 else
-    echo "   ✅ CocoaPods ya está instalado: $(pod --version)"
+    echo "   ✅ CocoaPods instalado: $(pod --version)"
 fi
 
 echo ""
-echo "📦 Instalando dependencias de pods (esto puede tardar unos minutos)..."
+echo "🧹 Limpiando cache de CocoaPods..."
+pod cache clean --all 2>/dev/null || true
+
+echo ""
+echo "📦 Desintegrando pods anteriores..."
 pod deintegrate 2>/dev/null || true
-pod install --repo-update
+
+echo ""
+echo "📦 Actualizando repositorio de CocoaPods..."
+pod repo update
+
+echo ""
+echo "📦 Instalando dependencias (esto puede tardar 5-10 minutos)..."
+echo "   Por favor, ten paciencia..."
+pod install --repo-update --verbose
 
 cd ..
 
@@ -76,9 +89,9 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 echo "   npm run ios"
 echo ""
-echo "O especifica el proyecto:"
+echo "O directamente:"
 echo ""
-echo "   npx react-native run-ios --project-path ios/QRiderRD.xcodeproj"
+echo "   npx react-native run-ios --scheme QRiderRD"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""

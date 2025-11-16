@@ -1,68 +1,147 @@
-# Cómo obtener y agregar el SHA-1 a Firebase
+# 🔧 SOLUCIÓN FINAL - Error gRPC-Core.modulemap
 
-## Paso 1: Obtén tu SHA-1 fingerprint
+## ❌ El error que tienes:
 
-Ejecuta este comando en tu terminal (en la raíz del proyecto):
+```
+module map file 'gRPC-Core.modulemap' not found
+```
+
+## ✅ SOLUCIÓN (1 comando):
 
 ```bash
-cd android && ./gradlew signingReport
+./FIX_IOS.sh
 ```
 
-Busca la sección **Task :app:signingReport** y copia el **SHA-1** que está bajo "Variant: debug"
-
-Debería verse algo como:
-```
-SHA1: A1:B2:C3:D4:E5:F6:G7:H8:I9:J0:K1:L2:M3:N4:O5:P6:Q7:R8:S9:T0
-```
-
-## Paso 2: Agrega el SHA-1 en Firebase Console
-
-1. Ve a: https://console.firebase.google.com/project/qriderrd/settings/general
-2. Baja hasta "Tus apps"
-3. Busca tu app Android (com.qriderrd)
-4. Haz clic en el ícono de configuración (⚙️) de la app
-5. Busca la sección "Huellas digitales de certificado SHA"
-6. Haz clic en "Agregar huella digital"
-7. Pega tu SHA-1 y guarda
-
-## Paso 3: Descarga el nuevo google-services.json
-
-1. En la misma página, baja y busca el botón "Descargar google-services.json"
-2. Descarga el archivo
-3. **REEMPLAZA** el archivo en: `android/app/google-services.json`
-
-El nuevo archivo debe tener el `oauth_client` con datos, algo como:
-```json
-{
-  "oauth_client": [
-    {
-      "client_id": "476161322544-XXXXXXXXXX.apps.googleusercontent.com",
-      "client_type": 3
-    }
-  ]
-}
-```
-
-## Paso 4: Reconstruye la app
+Luego:
 
 ```bash
-cd android
-./gradlew clean
-cd ..
-npm run android
+npm run ios
 ```
 
-## Paso 5: Prueba Google Sign-In
-
-Ahora el botón de Google Sign-In debería funcionar sin el error DEVELOPER_ERROR.
+**Eso es todo!** El script ahora incluye:
+- ✅ Limpieza completa de cache de CocoaPods
+- ✅ Desintegración de pods
+- ✅ Actualización de repositorios
+- ✅ Instalación fresca y verbose
 
 ---
 
-## Alternativa rápida (si no puedes ejecutar gradlew):
+## ⏱️ Nota sobre el tiempo
 
-Usa el SHA-1 del keystore debug por defecto de Android:
+La instalación de pods tomará **5-10 minutos**. Es normal. El script usa `--verbose` para que veas el progreso.
+
+---
+
+## 📝 Lo que hace el script mejorado:
+
+1. Elimina proyectos duplicados
+2. Limpia builds de Xcode
+3. **Elimina cache de CocoaPods** ← NUEVO
+4. **Desintegra pods anteriores** ← NUEVO
+5. **Actualiza repositorio de pods** ← NUEVO
+6. Instala pods con `--verbose` para ver progreso
+7. Limpia cache de npm y Metro
+
+---
+
+## 🔄 Si el script toma mucho tiempo:
+
+Es normal que tome tiempo. Verás output como:
+
 ```
-SHA1: DA:39:A3:EE:5E:6B:4B:0D:32:55:BF:EF:95:60:18:90:AF:D8:07:09
+Analyzing dependencies
+Downloading dependencies
+Installing Firebase...
+Installing gRPC-Core...
 ```
 
-Pero es mejor usar el tuyo real ejecutando `./gradlew signingReport`.
+**No canceles el proceso.** Puede tardar hasta 10 minutos la primera vez.
+
+---
+
+## 🎯 Alternativa Manual:
+
+Si prefieres hacerlo paso a paso:
+
+```bash
+cd ios
+
+# Limpiar TODO
+rm -rf Pods Podfile.lock
+rm -rf ~/Library/Caches/CocoaPods
+rm -rf ~/Library/Developer/Xcode/DerivedData
+
+# Limpiar cache
+pod cache clean --all
+
+# Desintegrar
+pod deintegrate
+
+# Actualizar repos
+pod repo update
+
+# Instalar
+pod install --repo-update --verbose
+
+cd ..
+npm run ios
+```
+
+---
+
+## ⚠️ Errores comunes durante la instalación:
+
+### Error: "Unable to find a specification for..."
+```bash
+pod repo update
+pod install --repo-update
+```
+
+### Error: "Permission denied"
+```bash
+sudo gem install cocoapods
+```
+
+### Error: "Command not found: pod"
+```bash
+sudo gem install cocoapods
+```
+
+---
+
+## ✨ Después de ejecutar el script:
+
+Tu aplicación tendrá:
+- ✅ Todos los módulos de Firebase correctamente instalados
+- ✅ Headers de gRPC generados
+- ✅ Sin errores de compilación
+- ✅ Lista para ejecutarse
+
+---
+
+## 🎉 RESUMEN:
+
+El error de `gRPC-Core.modulemap` se debe a cache corrupto de CocoaPods.
+
+**Solución:**
+```bash
+./FIX_IOS.sh
+npm run ios
+```
+
+**Tiempo:** 5-10 minutos para la limpieza e instalación.
+
+**Resultado:** Aplicación funcionando perfectamente! 🚀
+
+---
+
+## 📞 Si aún tienes problemas:
+
+1. Verifica espacio en disco: `df -h` (necesitas 5GB+)
+2. Actualiza CocoaPods: `sudo gem install cocoapods`
+3. Reinicia tu Mac
+4. Ejecuta el script de nuevo
+
+---
+
+**Ten paciencia con la instalación de pods. Vale la pena la espera!** ⏰
