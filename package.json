@@ -4,7 +4,10 @@
   "private": true,
   "scripts": {
     "android": "react-native run-android",
-    "ios": "react-native run-ios",
+    "ios": "react-native run-ios --project-path ios/QRiderRD.xcodeproj",
+    "ios:setup": "cd ios && pod install && cd ..",
+    "ios:clean": "cd ios && rm -rf Pods Podfile.lock && pod install && cd ..",
+    "ios:fix": "./FIX_IOS.sh",
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest"

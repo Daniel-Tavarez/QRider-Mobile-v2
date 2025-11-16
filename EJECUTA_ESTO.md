@@ -2,13 +2,13 @@
 
 ## ✅ Todo está configurado. Solo sigue estos pasos:
 
-### Paso 1: Ejecuta el script de setup
+### Paso 1: Arregla y configura todo
 
 ```bash
-./SETUP_IOS.sh
+./FIX_IOS.sh
 ```
 
-Este script instalará todas las dependencias automáticamente.
+Este script limpia proyectos duplicados e instala dependencias automáticamente.
 
 ### Paso 2: Inicia la aplicación
 
@@ -36,12 +36,20 @@ La aplicación se abrirá en el simulador de iOS completamente funcional.
 
 ## 🔧 Si algo sale mal
 
-### Opción 1: Reinstalar pods
+### ⚠️ Error: "multiple projects with .xcodeproj"
+Lee `SOLUCION_ERROR_IOS.md` para soluciones detalladas.
+
+### Opción 1: Script de reparación completa
+```bash
+npm run ios:fix
+```
+
+### Opción 2: Reinstalar pods
 ```bash
 npm run ios:clean
 ```
 
-### Opción 2: Manual
+### Opción 3: Manual
 ```bash
 cd ios
 rm -rf Pods Podfile.lock
