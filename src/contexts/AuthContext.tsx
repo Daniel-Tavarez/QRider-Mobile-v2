@@ -105,46 +105,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
         throw new Error('Google Sign-In no está disponible. Por favor, reconstruye la app después de instalar las dependencias.');
       }
 
-      // Asegura configuración correcta (ID web client para ID token)
       try {
         GoogleSignin.configure({
           webClientId: '476161322544-062klmnbgjs7r7b9k26bdkb3bcooltve.apps.googleusercontent.com',
         });
       } catch (e) {
-        // no fatal
+        console.warn('GoogleSignin configure error:', e);
       }
 
-      // Verifica Google Play Services (Android)
       try {
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
       } catch (e) {
         throw new Error('Actualiza Google Play Services en tu dispositivo.');
       }
 
-      const response = await GoogleSignin.signIn();
-      if (!response || response.type !== 'success') {
-        throw new Error('Inicio de sesión cancelado.');
+      const userInfo = await GoogleSignin.signIn();
+
+      if (!userInfo || !userInfo.idToken) {
+        throw new Error('No se pudo obtener el token de Google');
       }
 
-      // Obtén tokens de forma fiable (evita idToken nulo); usa accessToken como respaldo
-      let idToken: string | null | undefined = response.data?.idToken;
-      let accessToken: string | null | undefined = undefined;
-      try {
-        const tokens = await GoogleSignin.getTokens();
-        idToken = idToken || tokens?.idToken;
-        accessToken = tokens?.accessToken || undefined;
-      } catch {
-        // ignorar
-      }
-
-      if (!idToken && !accessToken) {
-        // Guía habitual: mismatch de packageName / SHA-1 o Web Client ID
-        throw new Error(
-          'No se pudo obtener credenciales de Google (idToken/accessToken). Verifica packageName, SHA-1/SHA-256 y Web Client ID en Firebase.'
-        );
-      }
-
-      const googleCredential = auth.GoogleAuthProvider.credential(idToken || null, accessToken || undefined);
+      const googleCredential = auth.GoogleAuthProvider.credential(userInfo.idToken);
       const result = await auth().signInWithCredential(googleCredential);
 
       let userDoc = await getUserDocument(result.user.uid);
@@ -161,13 +142,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await AsyncStorage.setItem('user', JSON.stringify(userDoc));
     } catch (error: any) {
       console.error('Google Sign-In Error:', error);
-      // Mapear errores comunes a mensajes claros
       const code = error?.code || error?.message || '';
       if (typeof code === 'string') {
-        if (code.includes('SIGN_IN_CANCELLED') || code.includes('cancelled')) {
+        if (code.includes('SIGN_IN_CANCELLED') || code.includes('cancelled') || code === '12501') {
           throw new Error('Inicio de sesión cancelado');
         }
-        if (code.includes('DEVELOPER_ERROR') || code.includes('10')) {
+        if (code.includes('DEVELOPER_ERROR') || code === '10') {
           throw new Error('Configura el SHA-1/SHA-256 del keystore en Firebase y vuelve a descargar google-services.json.');
         }
         if (code.includes('PLAY_SERVICES_NOT_AVAILABLE')) {
@@ -180,7 +160,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           throw new Error('La cuenta ya existe con otro método. Inicia con ese método y vincula Google en tu perfil.');
         }
       }
-      throw new Error('No se pudo iniciar sesión con Google');
+      throw error;
     }
   };
 
