@@ -1,13 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from 'react';
+import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { geofenceService } from '../modules/geofence';
-import { dataStore } from '../lib/localDataStore';
 import { User } from '../types';
 
 let GoogleSignin: any = null;
@@ -18,14 +14,14 @@ try {
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: FirebaseAuthTypes.User | null;
   userData: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
-  resetPassword: (email: string) => Promise<string>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -42,124 +38,137 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
-const AUTH_USER_KEY = 'auth_user';
-const USER_CACHE_KEY = 'user';
-
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
   const [userData, setUserData] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const persistSession = useCallback(async (authUser: User, profile: User) => {
-    setUser(authUser);
-    setUserData(profile);
-    await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(authUser));
-    await AsyncStorage.setItem(USER_CACHE_KEY, JSON.stringify(profile));
-  }, []);
+  console.log(user)
+  const generateSlug = (): string => {
+    return Math.random().toString(36).substring(2, 10);
+  };
 
-  const clearSession = useCallback(async () => {
-    setUser(null);
-    setUserData(null);
-    await AsyncStorage.removeItem(AUTH_USER_KEY);
-    await AsyncStorage.removeItem(USER_CACHE_KEY);
-  }, []);
+  const createUserDocument = async (
+    uid: string,
+    email: string,
+    displayName: string,
+    photoURL?: string
+  ): Promise<User> => {
+    const slug = generateSlug();
+    
+    const timestamp = firestore.Timestamp.now();
+    const userData: User = {
+      uid,
+      email,
+      displayName: displayName || email.split('@')[0] || 'QRider',
+      photoURL: photoURL || undefined,
+      slug,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
 
-  const loadCachedSession = useCallback(async () => {
+    await firestore().collection('users').doc(uid).set(userData);
+    await firestore().collection('slugs').doc(slug).set({ 
+      user_id: uid,
+      created_at: timestamp
+    });
+    
+    return userData;
+  };
+
+  const getUserDocument = async (uid: string): Promise<User | null> => {
+    const userDoc = await firestore().collection('users').doc(uid).get();
+    return userDoc.exists() ? (userDoc.data() as User) : null;
+  };
+
+  const signUp = async (email: string, password: string, displayName: string) => {
+    const result = await auth().createUserWithEmailAndPassword(email, password);
+    await result.user.updateProfile({ displayName });
+    
+    const userDoc = await createUserDocument(
+      result.user.uid,
+      result.user.email!,
+      displayName,
+      result.user.photoURL || undefined
+    );
+    
+    setUserData(userDoc);
+    await AsyncStorage.setItem('user', JSON.stringify(userDoc));
+  };
+
+  const signIn = async (email: string, password: string) => {
+    await auth().signInWithEmailAndPassword(email, password);
+  };
+
+  const signInWithGoogle = async () => {
     try {
-      const [authUserRaw, userRaw] = await Promise.all([
-        AsyncStorage.getItem(AUTH_USER_KEY),
-        AsyncStorage.getItem(USER_CACHE_KEY),
-      ]);
-
-      if (authUserRaw) {
-        setUser(JSON.parse(authUserRaw) as User);
+      if (!GoogleSignin) {
+        throw new Error('Google Sign-In no está disponible. Por favor, reconstruye la app después de instalar las dependencias.');
       }
-      if (userRaw) {
-        setUserData(JSON.parse(userRaw) as User);
-      }
-    } catch (error) {
-      console.warn('AuthProvider: failed to restore session', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
-  useEffect(() => {
-    loadCachedSession();
-  }, [loadCachedSession]);
-
-  const signUp = useCallback(
-    async (email: string, password: string, displayName: string) => {
-      const newUser = await dataStore.registerUser({ email, password, displayName });
-      await persistSession(newUser, newUser);
-    },
-    [persistSession],
-  );
-
-  const signIn = useCallback(
-    async (email: string, password: string) => {
-      const authUser = await dataStore.authenticate(email, password);
-      const profile = (await dataStore.getUser(authUser.uid)) ?? authUser;
-      await persistSession(authUser, profile);
-    },
-    [persistSession],
-  );
-
-  const signInWithGoogle = useCallback(async () => {
-    if (!GoogleSignin) {
-      throw new Error(
-        'Google Sign-In no está disponible. Por favor, reconstruye la app después de instalar las dependencias.',
-      );
-    }
-
-    try {
+      // Asegura configuración correcta (ID web client para ID token)
       try {
         GoogleSignin.configure({
           webClientId: '476161322544-062klmnbgjs7r7b9k26bdkb3bcooltve.apps.googleusercontent.com',
         });
-      } catch (error) {
-        console.warn('GoogleSignin configure failed', error);
+      } catch (e) {
+        // no fatal
       }
 
+      // Verifica Google Play Services (Android)
       try {
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      } catch (error) {
+      } catch (e) {
         throw new Error('Actualiza Google Play Services en tu dispositivo.');
       }
 
       const response = await GoogleSignin.signIn();
-      if (!response) {
+      if (!response || response.type !== 'success') {
         throw new Error('Inicio de sesión cancelado.');
       }
 
-      const data = response.data || response.user || response;
-      const account = data?.user || data;
-      const email = account?.email;
-      if (!email) {
-        throw new Error('No se pudo obtener el email de la cuenta de Google.');
+      // Obtén tokens de forma fiable (evita idToken nulo); usa accessToken como respaldo
+      let idToken: string | null | undefined = response.data?.idToken;
+      let accessToken: string | null | undefined = undefined;
+      try {
+        const tokens = await GoogleSignin.getTokens();
+        idToken = idToken || tokens?.idToken;
+        accessToken = tokens?.accessToken || undefined;
+      } catch {
+        // ignorar
       }
 
-      const displayName = account?.name || account?.displayName || email;
-      const photoURL = account?.photo || account?.photoURL;
+      if (!idToken && !accessToken) {
+        // Guía habitual: mismatch de packageName / SHA-1 o Web Client ID
+        throw new Error(
+          'No se pudo obtener credenciales de Google (idToken/accessToken). Verifica packageName, SHA-1/SHA-256 y Web Client ID en Firebase.'
+        );
+      }
 
-      const storedUser = await dataStore.upsertUserFromIdentity({
-        uid: account?.id,
-        email,
-        displayName,
-        photoURL,
-      });
+      const googleCredential = auth.GoogleAuthProvider.credential(idToken || null, accessToken || undefined);
+      const result = await auth().signInWithCredential(googleCredential);
 
-      await persistSession(storedUser, storedUser);
+      let userDoc = await getUserDocument(result.user.uid);
+      if (!userDoc) {
+        userDoc = await createUserDocument(
+          result.user.uid,
+          result.user.email!,
+          result.user.displayName || '',
+          result.user.photoURL || undefined
+        );
+      }
+
+      setUserData(userDoc);
+      await AsyncStorage.setItem('user', JSON.stringify(userDoc));
     } catch (error: any) {
       console.error('Google Sign-In Error:', error);
+      // Mapear errores comunes a mensajes claros
       const code = error?.code || error?.message || '';
       if (typeof code === 'string') {
         if (code.includes('SIGN_IN_CANCELLED') || code.includes('cancelled')) {
           throw new Error('Inicio de sesión cancelado');
         }
         if (code.includes('DEVELOPER_ERROR') || code.includes('10')) {
-          throw new Error(
-            'Verifica la configuración del cliente OAuth en Google Cloud para esta aplicación.',
-          );
+          throw new Error('Configura el SHA-1/SHA-256 del keystore en Firebase y vuelve a descargar google-services.json.');
         }
         if (code.includes('PLAY_SERVICES_NOT_AVAILABLE')) {
           throw new Error('Google Play Services no disponible/actualiza en el dispositivo.');
@@ -167,10 +176,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (code.includes('NETWORK_ERROR')) {
           throw new Error('Error de red. Revisa tu conexión.');
         }
+        if (code.includes('auth/account-exists-with-different-credential')) {
+          throw new Error('La cuenta ya existe con otro método. Inicia con ese método y vincula Google en tu perfil.');
+        }
       }
       throw new Error('No se pudo iniciar sesión con Google');
     }
-  }, [persistSession]);
+  };
 
   const logout = async () => {
     try {
@@ -183,6 +195,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           await TrackingService.stop();
         }
       } catch {}
+      await AsyncStorage.clear();
     } catch (e) {
       // non-fatal
       console.warn('Logout: stopGeofencing failed or not active');
@@ -192,13 +205,77 @@ export function AuthProvider({ children }: AuthProviderProps) {
         await GoogleSignin.signOut();
       }
     } catch {}
-    await clearSession();
+    await auth().signOut();
+    await AsyncStorage.removeItem('user');
   };
 
-  const resetPassword = useCallback(async (email: string) => {
-    const newPassword = `qr-${Math.random().toString(36).substring(2, 8)}`;
-    await dataStore.updateUserPassword(email, newPassword);
-    return newPassword;
+  const resetPassword = async (email: string) => {
+    await auth().sendPasswordResetEmail(email);
+  };
+
+  useEffect(() => {
+    console.log('AuthContext: Setting up auth listener');
+
+    if (GoogleSignin) {
+      try {
+        GoogleSignin.configure({
+          webClientId: '476161322544-062klmnbgjs7r7b9k26bdkb3bcooltve.apps.googleusercontent.com',
+        });
+      } catch (e) {
+        console.warn('Failed to configure GoogleSignin:', e);
+      }
+    }
+
+    const timeout = setTimeout(() => {
+      console.log('AuthContext: Timeout reached, setting loading to false');
+      setLoading(false);
+    }, 5000);
+
+    const unsubscribe = auth().onAuthStateChanged(async (firebaseUser) => {
+      console.log('AuthContext: Auth state changed', firebaseUser ? 'User logged in' : 'No user');
+      clearTimeout(timeout);
+      setUser(firebaseUser);
+
+      if (firebaseUser) {
+        try {
+          let userDoc = await getUserDocument(firebaseUser.uid);
+
+          if (!userDoc) {
+            userDoc = await createUserDocument(
+              firebaseUser.uid,
+              firebaseUser.email!,
+              firebaseUser.displayName || '',
+              firebaseUser.photoURL || undefined
+            );
+          }
+
+          setUserData(userDoc);
+          await AsyncStorage.setItem('user', JSON.stringify(userDoc));
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+          // Fallback offline: intenta cargar desde caché local
+          try {
+            const cached = await AsyncStorage.getItem('user');
+            if (cached) {
+              const parsed = JSON.parse(cached) as User;
+              setUserData(parsed);
+            }
+          } catch {}
+        }
+      } else {
+        // On any auth loss, stop geofencing and clear user cache
+        try { await geofenceService.stopGeofencing(); } catch {}
+        setUserData(null);
+        await AsyncStorage.removeItem('user');
+      }
+
+      setLoading(false);
+    });
+
+    return () => {
+      clearTimeout(timeout);
+      unsubscribe();
+    };
   }, []);
 
   const value: AuthContextType = {
