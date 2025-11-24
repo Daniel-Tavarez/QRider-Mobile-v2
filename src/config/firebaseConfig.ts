@@ -1,4 +1,6 @@
-import auth from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
+import { dataStore } from '../lib/localDataStore';
 
-export { auth, firestore };
+// Deprecated Firebase config placeholder. All modules now use the local
+// data store. This file remains to avoid import errors while refactors are
+// completed across the app.
+export { dataStore };

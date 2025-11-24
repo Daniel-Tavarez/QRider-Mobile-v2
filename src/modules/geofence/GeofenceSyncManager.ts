@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import firestore from '@react-native-firebase/firestore';
+import { dataStore } from '../../lib/localDataStore';
 import { GeofenceEvent } from './types';
 
 const PENDING_EVENTS_KEY = 'geofence_pending_events';
@@ -290,65 +290,14 @@ export class GeofenceSyncManager {
         return { success: 0, failed: 0 };
       }
 
-      console.log(`Syncing ${pendingEvents.length} pending events to Firebase...`);
+      console.log(`Syncing ${pendingEvents.length} pending events to local data store...`);
 
       const syncedEventIds: string[] = [];
       let failedCount = 0;
 
       for (const event of pendingEvents) {
         try {
-          await firestore()
-            .collection('events')
-            .doc(event.eventId)
-            .collection('checkpoints_logs')
-            .add({
-              checkpoint_id: event.checkpointId,
-              event_type: event.eventType,
-              user_id: event.userId,
-              latitude: event.latitude,
-              longitude: event.longitude,
-              timestamp: event.timestamp,
-              synced_at: firestore.FieldValue.serverTimestamp(),
-            });
-
-          // Upsert checkpointProgress on ENTER to reflect completion
-          if (event.eventType === 'ENTER') {
-            const docId = `${event.eventId}_${event.userId}_${event.checkpointId}`;
-            const docRef = firestore().collection('checkpointProgress').doc(docId);
-            await docRef.set(
-              {
-                checkpointId: event.checkpointId,
-                uid: event.userId,
-                event_id: event.eventId,
-                latitude: event.latitude,
-                longitude: event.longitude,
-                // preserve event timestamp for progress
-                timestamp: (firestore as any).Timestamp?.fromDate
-                  ? (firestore as any).Timestamp.fromDate(new Date(event.timestamp))
-                  : event.timestamp,
-                updated_at: firestore.FieldValue.serverTimestamp(),
-              },
-              { merge: true }
-            );
-          } else if (event.eventType === 'EXIT') {
-            // Update same progress doc with exit fields
-            const docId = `${event.eventId}_${event.userId}_${event.checkpointId}`;
-            const docRef = firestore().collection('checkpointProgress').doc(docId);
-            await docRef.set(
-              {
-                checkpointId: event.checkpointId,
-                uid: event.userId,
-                event_id: event.eventId,
-                exitLatitude: event.latitude,
-                exitLongitude: event.longitude,
-                exitTimestamp: (firestore as any).Timestamp?.fromDate
-                  ? (firestore as any).Timestamp.fromDate(new Date(event.timestamp))
-                  : event.timestamp,
-                updated_at: firestore.FieldValue.serverTimestamp(),
-              },
-              { merge: true }
-            );
-          }
+          await dataStore.recordGeofenceEvent(event);
 
           syncedEventIds.push(event.id);
           console.log(`Event synced successfully: ${event.id}`);

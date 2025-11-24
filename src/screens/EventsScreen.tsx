@@ -1,4 +1,3 @@
-import firestore from '@react-native-firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   RefreshControl,
@@ -14,6 +13,7 @@ import { Icon } from '../components/common/Icon';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { theme } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import { dataStore } from '../lib/localDataStore';
 import { Event } from '../types';
 
 interface EventsScreenProps {
@@ -35,35 +35,12 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
 
   const loadEvents = async () => {
     try {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      yesterday.setHours(0, 0, 0, 0);
-
-      const formattedDate = yesterday.toISOString().split('T')[0];
-      const querySnapshot = await firestore()
-        .collection('events')
-        .where('date', '>=', formattedDate)
-        .orderBy('date', 'desc')
-        .get();
-
-      const eventsData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Event[];
-
+      const eventsData = await dataStore.getUpcomingEvents();
       setEvents(eventsData);
 
-      // Load participant counts for each event
       const counts: Record<string, number> = {};
       for (const event of eventsData) {
-        const countSnap = await firestore()
-          .collection('eventRegistrations')
-          .where('eventId', '==', event.id)
-          .where('status', 'in', ['going', 'maybe'])
-          .count()
-          .get();
-
-        counts[event.id] = countSnap.data().count;
+        counts[event.id] = await dataStore.countParticipants(event.id, ['going', 'maybe']);
       }
       setParticipantCounts(counts);
     } catch (error) {
