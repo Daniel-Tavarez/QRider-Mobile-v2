@@ -1,7 +1,7 @@
-import firestore from '@react-native-firebase/firestore';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, AppState, AppStateStatus, Linking, Platform } from 'react-native';
 import { TrackingService } from '../../lib/TrackingService.android';
+import { dataStore } from '../../lib/localDataStore';
 import { geofenceService } from './GeofenceService';
 import { syncManager } from './GeofenceSyncManager';
 import { defineGeofenceTask } from './GeofenceTaskManager';
@@ -25,8 +25,7 @@ export const useGeofence = (eventId: string, userId: string) => {
 
   const loadRouteContext = useCallback(async () => {
     try {
-      const eventDoc = await firestore().collection('events').doc(eventId).get();
-      const eventData: any = eventDoc.exists() ? eventDoc.data() : null;
+      const eventData = await dataStore.getEvent(eventId);
       const hasMultiple = !!eventData?.multipleRoutes;
       setMultipleRoutes(hasMultiple);
 
@@ -34,16 +33,10 @@ export const useGeofence = (eventId: string, userId: string) => {
         setRouteId(null);
         return null;
       }
-      const regSnap = await firestore()
-        .collection('eventRegistrations')
-        .where('eventId', '==', eventId)
-        .where('uid', '==', userId)
-        .limit(1)
-        .get();
-      if (!regSnap.empty) {
-        const rid: string | null = (regSnap.docs[0].data() as any)?.routeId || null;
-        setRouteId(rid);
-        return rid;
+      const registration = await dataStore.getRegistration(eventId, userId);
+      if (registration?.routeId) {
+        setRouteId(registration.routeId);
+        return registration.routeId;
       }
       setRouteId(null);
       return null;

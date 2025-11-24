@@ -1,5 +1,4 @@
-import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
-
+export type TimestampString = string;
 export type BloodType = 'O+' | 'O-' | 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-';
 
 export interface User {
@@ -8,8 +7,8 @@ export interface User {
   displayName: string;
   photoURL?: string;
   slug: string;
-  createdAt: FirebaseFirestoreTypes.Timestamp;
-  updatedAt: FirebaseFirestoreTypes.Timestamp;
+  createdAt: TimestampString;
+  updatedAt: TimestampString;
 }
 
 export interface EmergencyContact {
@@ -90,7 +89,7 @@ export interface Profile {
   primaryPhone: string;
   secondaryPhone?: string;
   contacts: EmergencyContact[];
-  updatedAt: FirebaseFirestoreTypes.Timestamp;
+  updatedAt: TimestampString;
   // Extended fields
   insurances?: InsuranceInfo[];
   address?: AddressInfo;
@@ -98,6 +97,19 @@ export interface Profile {
   aeroAmbulance?: AeroAmbulanceInfo;
   preferredCare?: PreferredCareInfo;
   bike?: BikeInfo;
+}
+
+export interface EventWindow {
+  start: TimestampString;
+  end: TimestampString;
+}
+
+export interface RosterEntry {
+  fullName: string;
+  bloodType: BloodType | null;
+  publicSlug: string;
+  publicUrl: string | null;
+  avatarUrl: string | null;
 }
 
 export interface Event {
@@ -119,18 +131,9 @@ export interface Event {
   inviteCode?: string;
   multipleRoutes?: boolean;
   capacity?: number;
-  window?: {
-    start: {
-      _nanoseconds: number;
-      _seconds: number;
-    };
-    end: {
-      _nanoseconds: number;
-      _seconds: number;
-    };
-  };
-  createdAt: FirebaseFirestoreTypes.Timestamp;
-  updatedAt: FirebaseFirestoreTypes.Timestamp;
+  window?: EventWindow;
+  createdAt: TimestampString;
+  updatedAt: TimestampString;
 }
 
 export interface EventRegistration {
@@ -140,8 +143,9 @@ export interface EventRegistration {
   routeId?: string;
   status: 'going' | 'maybe' | 'notgoing';
   consentEmergencyShare: boolean;
-  createdAt: FirebaseFirestoreTypes.Timestamp;
-  updatedAt: FirebaseFirestoreTypes.Timestamp;
+  createdAt: TimestampString;
+  updatedAt: TimestampString;
+  rosterEntry?: RosterEntry;
 }
 
 export interface RouteDoc {
@@ -160,7 +164,7 @@ export interface Checkpoint {
   latitude: number;
   longitude: number;
   radius: number;
-  createdAt: FirebaseFirestoreTypes.Timestamp;
+  createdAt: TimestampString;
 }
 
 export interface CheckpointProgress {
@@ -168,12 +172,12 @@ export interface CheckpointProgress {
   checkpointId: string;
   uid: string;
   eventId: string;
-  timestamp: FirebaseFirestoreTypes.Timestamp;
+  timestamp: TimestampString;
   latitude: number;
   longitude: number;
   // Optional structured fields for entry/exit
-  entryTimestamp?: FirebaseFirestoreTypes.Timestamp;
-  exitTimestamp?: FirebaseFirestoreTypes.Timestamp;
+  entryTimestamp?: TimestampString;
+  exitTimestamp?: TimestampString;
   entryLatitude?: number;
   entryLongitude?: number;
   exitLatitude?: number;

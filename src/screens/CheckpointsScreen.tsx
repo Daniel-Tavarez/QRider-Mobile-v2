@@ -1,6 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NetInfo from '@react-native-community/netinfo';
-import firestore from '@react-native-firebase/firestore';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import {
@@ -16,6 +14,7 @@ import { Card } from '../components/common/Card';
 import { Icon } from '../components/common/Icon';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { theme } from '../constants/theme';
+import { dataStore } from '../lib/localDataStore';
 import { geofenceService, syncManager } from '../modules/geofence';
 import { Checkpoint as GeofenceCheckpoint } from '../modules/geofence/types';
 import { CheckpointProgress, RootStackParamList } from '../types';
@@ -54,41 +53,11 @@ export function CheckpointsScreen({
 
   const loadData = async () => {
     try {
-      // Determine connectivity
-      const state = await NetInfo.fetch();
-      const isOnline =
-        state.isConnected === true && state.isInternetReachable === true;
+      let checkpointsData = await geofenceService.getLocalCheckpoints(eventId);
 
-      // Load checkpoints - online from Firestore, otherwise from local cache
-      let checkpointsData: GeofenceCheckpoint[] = [];
-      if (isOnline) {
-        let queryRef = firestore()
-          .collection('checkpoints')
-          .where('event_id', '==', eventId)
-          .where('active', '==', true);
-
-        if (routeId) {
-          queryRef = queryRef.where('routeId', '==', routeId);
-        }
-
-        const checkpointsSnap = await queryRef.get();
-
-        checkpointsData = checkpointsSnap.docs.map(doc => ({
-          id: doc.id,
-          ...(doc.data() as any),
-        })) as unknown as GeofenceCheckpoint[];
-
-        // Persist remote as source of truth
-        try {
-          await geofenceService.saveCheckpointsLocally(
-            eventId,
-            checkpointsData,
-          );
-          const validIds = checkpointsData.map(c => c.id);
-          await syncManager.pruneLocalDataForEvent(eventId, userId, validIds);
-        } catch {}
-      } else {
-        checkpointsData = await geofenceService.getLocalCheckpoints(eventId);
+      if (!checkpointsData.length) {
+        checkpointsData = await dataStore.getCheckpoints(eventId, routeId ?? null);
+        await geofenceService.saveCheckpointsLocally(eventId, checkpointsData);
       }
 
       checkpointsData = (checkpointsData || []).sort(
@@ -98,23 +67,10 @@ export function CheckpointsScreen({
       console.log('Loaded checkpoints:', checkpointsData?.length || 0);
       const validIdSet = new Set(checkpointsData.map(c => c.id));
 
-      // Load progress
-      let remoteProgress: CheckpointProgress[] = [];
-      if (isOnline) {
-        const progressSnap = await firestore()
-          .collection('checkpointProgress')
-          .where('event_id', '==', eventId)
-          .where('uid', '==', userId)
-          .get();
-        remoteProgress = progressSnap.docs.map(doc => ({
-          id: doc.id,
-          ...(doc.data() as any),
-        })) as unknown as CheckpointProgress[];
-        // keep only progress that matches current checkpoints
-        remoteProgress = remoteProgress.filter(rp =>
-          validIdSet.has((rp as any).checkpointId),
-        );
-      }
+      let remoteProgress = await dataStore.getCheckpointProgress(eventId, userId);
+      remoteProgress = (remoteProgress || []).filter(rp =>
+        validIdSet.has((rp as any).checkpointId),
+      );
 
       // Always include local progress so UI reflects offline ENTERs immediately
       const localProgress = await syncManager.getLocalCheckpointProgress(
@@ -147,7 +103,7 @@ export function CheckpointsScreen({
       setProgress(Array.from(byCheckpoint.values()) as any);
     } catch (error) {
       console.error('Error loading checkpoints:', error);
-      // Fallback to purely local if Firestore calls fail
+      // Fallback to purely local data if cache retrieval fails
       try {
         const checkpointsData = await geofenceService.getLocalCheckpoints(
           eventId,
@@ -196,7 +152,23 @@ export function CheckpointsScreen({
   };
 
   const formatTimestamp = (timestamp: any): string => {
-    const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+    let date: Date | null = null;
+    if (!timestamp) {
+      return '';
+    }
+
+    if (typeof timestamp === 'string') {
+      date = new Date(timestamp);
+    } else if (timestamp?.toDate) {
+      date = timestamp.toDate();
+    } else if (typeof timestamp?._seconds === 'number') {
+      date = new Date(timestamp._seconds * 1000);
+    }
+
+    if (!date || Number.isNaN(date.getTime())) {
+      return '';
+    }
+
     return date.toLocaleString('es-ES', {
       hour: '2-digit',
       minute: '2-digit',
