@@ -1,4 +1,3 @@
-import firestore from '@react-native-firebase/firestore';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import {
@@ -14,6 +13,7 @@ import { Card } from '../components/common/Card';
 import { Icon } from '../components/common/Icon';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { theme } from '../constants/theme';
+import { dataStore } from '../lib/localDataStore';
 import { Event, EventRegistration, Profile, RootStackParamList } from '../types';
 
 type ParticipantsScreenProps = NativeStackScreenProps<RootStackParamList, 'Participants'>;
@@ -35,41 +35,25 @@ export function ParticipantsScreen({ route, navigation }: ParticipantsScreenProp
 
   const loadData = async () => {
     try {
-      const eventDoc = await firestore()
-        .collection('events')
-        .doc(eventId)
-        .get();
-      
-      if (eventDoc.exists()) {
-        setEvent({ id: eventDoc.id, ...eventDoc.data() } as Event);
+      const eventData = await dataStore.getEvent(eventId);
+      if (eventData) {
+        setEvent(eventData);
       }
 
-      const participantsSnap = await firestore()
-        .collection('eventRegistrations')
-        .where('eventId', '==', eventId)
-        .get();
+      const registrations = await dataStore.getRegistrations(eventId);
 
       const participantsData = await Promise.all(
-        participantsSnap.docs.map(async (docSnap) => {
-          const registration = docSnap.data() as EventRegistration;
-
+        registrations.map(async registration => {
           try {
-            const profileDoc = await firestore()
-              .collection('profiles')
-              .doc(registration.uid)
-              .get();
-            if (profileDoc.exists()) {
-              return {
-                ...registration,
-                profile: profileDoc.data() as Profile
-              };
-            }
+            const profile = await dataStore.getProfile(registration.uid);
+            return profile
+              ? { ...registration, profile }
+              : registration;
           } catch (error) {
             console.error('Error loading profile:', error);
+            return registration;
           }
-
-          return registration;
-        })
+        }),
       );
 
       setParticipants(participantsData);

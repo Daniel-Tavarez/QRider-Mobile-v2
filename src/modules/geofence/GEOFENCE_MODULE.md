@@ -1,14 +1,14 @@
 # QRider Geofencing Module
 
-Complete geofencing solution for QRider mobile app with Firebase Firestore integration, offline support, and background tracking.
+Complete geofencing solution for the QRider mobile app backed by the local AsyncStorage-powered data store with offline support and background tracking.
 
 ## Features
 
-- **Firebase Integration**: Downloads checkpoints from Firestore
+- **Local Data Store Integration**: Pulls checkpoints and registrations via the shared `dataStore`
 - **Offline-First**: Works without internet connection
 - **Background Tracking**: Detects checkpoint entries/exits even when app is closed
-- **Auto-Sync**: Automatically syncs events when connection is restored
-- **Local Storage**: Uses SQLite for event persistence and MMKV for checkpoint caching
+- **Auto-Sync**: Automatically persists queued events to the data store when connection is restored
+- **Local Persistence**: Uses AsyncStorage for checkpoint caching and pending event storage
 - **React Hook**: Easy integration with `useGeofence` hook
 
 ## Architecture
@@ -17,7 +17,7 @@ Complete geofencing solution for QRider mobile app with Firebase Firestore integ
 src/modules/geofence/
 ├── types.ts                    - TypeScript interfaces
 ├── GeofenceService.ts          - Checkpoint download and geofence registration
-├── GeofenceSyncManager.ts      - Offline storage and Firebase sync
+├── GeofenceSyncManager.ts      - Offline storage and local data store sync
 ├── GeofenceTaskManager.ts      - Background task definition
 ├── useGeofence.ts              - React hook for components
 └── index.ts                    - Module exports
@@ -25,48 +25,27 @@ src/modules/geofence/
 
 ## Data Flow
 
-1. **Download**: Fetch checkpoints from Firestore (`checkpoints` collection)
-2. **Cache**: Save locally with MMKV for offline access
-3. **Register**: Create geofences with expo-location
+1. **Download**: Fetch checkpoints via `dataStore.getCheckpoints`
+2. **Cache**: Save locally with AsyncStorage for offline access
+3. **Register**: Create geofences with the monitor utilities
 4. **Detect**: Background task captures enter/exit events
-5. **Store**: Save events to SQLite with `synced: false`
-6. **Sync**: Upload to Firestore when online (`events/{eventId}/checkpoints_logs`)
+5. **Queue**: Save events to AsyncStorage with `synced: false`
+6. **Sync**: Persist queued events through `dataStore.recordGeofenceEvent`
 
-## Firestore Structure
+## Local Data Store
 
-### Checkpoints Collection
+The geofencing module interacts with the shared `dataStore` in `src/lib/localDataStore.ts`. Key helpers:
 
-```
-checkpoints/
-  {checkpointId}/
-    - active: boolean
-    - created_at: string
-    - event_id: string
-    - latitude: number
-    - longitude: number
-    - name: string
-    - notify_on_enter: boolean
-    - notify_on_exit: boolean
-    - radius: number (meters)
-    - sequence: number
-    - updated_at: string
-```
+- `getCheckpoints(eventId, routeId?)`: Retrieves the active checkpoints for an event (optionally filtered by route) and returns them sorted by sequence.
+- `getRegistration(eventId, userId)`: Provides the rider's chosen route so checkpoints can be filtered client-side.
+- `recordGeofenceEvent(event)`: Persists processed geofence activity so other parts of the app (progress, event detail) stay in sync.
 
-### Checkpoint Logs Collection
+Runtime caching and offline queues live entirely in AsyncStorage:
 
-```
-events/
-  {eventId}/
-    checkpoints_logs/
-      {logId}/
-        - checkpoint_id: string
-        - event_type: 'ENTER' | 'EXIT'
-        - user_id: string
-        - latitude: number
-        - longitude: number
-        - timestamp: string
-        - synced_at: timestamp
-```
+- `checkpoints_${eventId}`: Cached checkpoint list for quick reloads.
+- `geofence_pending_events`: Queue of unsynced geofence events.
+- `geofence_events_${eventId}`: Historical events per event to display in debug views.
+- `checkpoint_progress_${eventId}_${userId}` / `checkpoint_exit_progress_${eventId}_${userId}`: Local progress markers used for deduplication.
 
 ## Usage
 
@@ -143,7 +122,7 @@ React hook for geofence management.
 - `initializeGeofencing()`: Start tracking
 - `stopGeofencing()`: Stop tracking
 - `forceSync()`: Manually trigger sync
-- `reloadCheckpoints()`: Refresh from Firestore
+- `reloadCheckpoints()`: Refresh checkpoints from the data store
 - `updateStatus()`: Refresh status
 
 ### GeofenceService
@@ -156,11 +135,11 @@ import { geofenceService } from './modules/geofence';
 // Request permissions
 const hasPermissions = await geofenceService.requestPermissions();
 
-// Download checkpoints
-const checkpoints = await geofenceService.downloadCheckpoints(eventId);
+// Download checkpoints from the local data store (routeId optional)
+const checkpoints = await geofenceService.downloadCheckpoints(eventId, routeId ?? null);
 
 // Register geofences
-await geofenceService.registerGeofences(eventId);
+await geofenceService.registerGeofences(eventId, userId);
 
 // Stop tracking
 await geofenceService.stopGeofencing();
@@ -194,7 +173,7 @@ await syncManager.saveEventLocally({
 // Get pending events
 const pending = await syncManager.getPendingEvents();
 
-// Sync to Firebase
+// Sync to the local data store
 const result = await syncManager.syncPendingEvents();
 console.log(`Synced: ${result.success}, Failed: ${result.failed}`);
 
@@ -245,8 +224,8 @@ The module automatically handles background geofence events. When a user enters 
 
 1. Task wakes up in background
 2. Records current location
-3. Saves event to SQLite
-4. Attempts sync if online
+3. Saves event to the AsyncStorage pending queue
+4. Attempts sync to the shared data store if online
 5. Returns to background
 
 ## Optimization
@@ -266,8 +245,8 @@ The module automatically handles background geofence events. When a user enters 
 ### Storage Optimization
 
 - Cleans synced events after 7 days
-- Uses efficient SQLite indexes
-- Compresses checkpoint data with MMKV
+- Persists queues via AsyncStorage to avoid DB overhead
+- Deduplicates checkpoint progress entries per checkpoint
 
 ## Debugging
 
@@ -294,7 +273,7 @@ Navigate to GeofenceDebugScreen to view:
 1. Verify network connection: `syncManager.isOnline()`
 2. Check pending events: `syncManager.getPendingEvents()`
 3. Manually trigger sync: `syncManager.syncPendingEvents()`
-4. Check Firebase permissions and rules
+4. Review logs for `dataStore.recordGeofenceEvent` failures
 
 ### Task Not Running in Background
 
@@ -319,13 +298,13 @@ Navigate to GeofenceDebugScreen to view:
 3. Pass through checkpoints
 4. Check pending events in debug screen
 5. Restore connection
-6. Verify events sync to Firestore
+6. Verify events sync to the data store (visible in the debug screen activity list)
 
 ## Performance
 
 - **Startup**: ~500ms to initialize and register geofences
 - **Event Detection**: Near-instant (native APIs)
-- **Sync**: ~100ms per event (network dependent)
+- **Sync**: ~100ms per event (device I/O dependent)
 - **Battery Impact**: Minimal (uses native geofencing)
 - **Storage**: ~1KB per event, ~500 bytes per checkpoint
 

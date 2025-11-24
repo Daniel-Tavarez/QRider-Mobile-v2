@@ -92,13 +92,13 @@ export function AuthScreen() {
     }
 
     try {
-      await resetPassword(email);
+      const newPassword = await resetPassword(email);
       showSuccess(
-        'Email enviado',
-        'Revisa tu correo para restablecer tu contraseña',
+        'Contraseña restablecida',
+        `Tu nueva contraseña temporal es: ${newPassword}`,
       );
     } catch (error) {
-      showError('Error', 'No se pudo enviar el email de recuperación');
+      showError('Error', 'No se pudo restablecer la contraseña');
     }
   };
 

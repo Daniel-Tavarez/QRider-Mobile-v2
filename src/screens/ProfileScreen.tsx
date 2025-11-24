@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import firestore from '@react-native-firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   Linking,
@@ -15,6 +14,7 @@ import { Icon } from '../components/common/Icon';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { theme } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import { dataStore } from '../lib/localDataStore';
 import { Profile } from '../types';
 
 export function ProfileScreen() {
@@ -48,17 +48,11 @@ export function ProfileScreen() {
     if (!user) return;
 
     try {
-      const profileDoc = await firestore()
-        .collection('profiles')
-        .doc(user.uid)
-        .get();
-      if (profileDoc.exists()) {
-        const data = profileDoc.data() as Profile;
-        setProfile(data);
-        // Cache local para offline
-        await AsyncStorage.setItem(`profile:${user.uid}`, JSON.stringify(data));
+      const remoteProfile = await dataStore.getProfile(user.uid);
+      if (remoteProfile) {
+        setProfile(remoteProfile);
+        await AsyncStorage.setItem(`profile:${user.uid}`, JSON.stringify(remoteProfile));
       } else {
-        // Si no existe en server, intenta cache
         const cached = await AsyncStorage.getItem(`profile:${user.uid}`);
         if (cached) setProfile(JSON.parse(cached) as Profile);
       }

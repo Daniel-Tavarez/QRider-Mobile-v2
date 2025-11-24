@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import firestore from '@react-native-firebase/firestore';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import {
@@ -22,6 +21,7 @@ import { Icon } from '../components/common/Icon';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { theme } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import { dataStore } from '../lib/localDataStore';
 import { resetCompletedCheckpoints } from '../modules/geofence/GeofenceTaskManager';
 import { useGeofence } from '../modules/geofence/useGeofence';
 import {
@@ -63,12 +63,7 @@ export function EventDetailScreen({
 
   const getRouteById = async (id: string): Promise<RouteDoc | null> => {
     try {
-      const docSnap = await firestore().collection('routes').doc(id).get();
-      if (docSnap.exists()) {
-        const data = docSnap.data() as any;
-        return { ...(data as RouteDoc) } as RouteDoc;
-      }
-      return null;
+      return await dataStore.getRoute(id);
     } catch (e) {
       console.warn('getRouteById error:', e);
       return null;
@@ -150,67 +145,47 @@ export function EventDetailScreen({
     if (!user) return;
 
     try {
-      const eventDoc = await firestore()
-        .collection('events')
-        .doc(eventId)
-        .get();
-
-      if (!eventDoc.exists()) {
+      const eventData = await dataStore.getEvent(eventId);
+      if (!eventData) {
         Alert.alert('Error', 'Evento no encontrado');
         navigation.goBack();
         return;
       }
 
-      const eventData = { id: eventDoc.id, ...eventDoc.data() } as Event;
       setEvent(eventData);
 
-      const registrationSnap = await firestore()
-        .collection('eventRegistrations')
-        .where('eventId', '==', eventId)
-        .where('uid', '==', user.uid)
-        .get();
-
-      if (!registrationSnap.empty) {
-        const reg = registrationSnap.docs[0].data() as EventRegistration;
-        setRegistration(reg);
-        if (reg?.routeId) {
-          setSelectedRouteId(reg.routeId);
-          // Fetch route name directly by id to ensure display even if list not yet loaded
+      const registrationRecord = await dataStore.getRegistration(eventId, user.uid);
+      if (registrationRecord) {
+        setRegistration(registrationRecord);
+        if (registrationRecord.routeId) {
+          setSelectedRouteId(registrationRecord.routeId);
           try {
-            const rt = await getRouteById(reg.routeId);
+            const rt = await getRouteById(registrationRecord.routeId);
             if (rt?.name) setSelectedRouteName(rt.name);
-          } catch {}
+          } catch (error) {
+            console.warn('Failed loading route name', error);
+          }
         }
+      } else {
+        setRegistration(null);
       }
 
-      const participantsSnap = await firestore()
-        .collection('eventRegistrations')
-        .where('eventId', '==', eventId)
-        .get();
+      const participantsList = await dataStore.getRegistrations(eventId);
+      setParticipants(participantsList);
 
-      setParticipants(
-        participantsSnap.docs.map(doc => doc.data() as EventRegistration),
-      );
-
-      // Load available routes if event supports multiple routes
       if (eventData.multipleRoutes) {
         try {
-          const routesSnap = await firestore()
-            .collection('routes')
-            .where('eventId', '==', eventId)
-            .get();
-          const list: RouteDoc[] = routesSnap.docs.map(d => ({
-            id: d.id,
-            ...(d.data() as any),
-          }));
+          const list = await dataStore.getRoutesByEvent(eventId);
           setRoutes(list);
-          // If we have a selectedRouteId, ensure we have its name
           if (selectedRouteId && !selectedRouteName) {
-            const found = list.find(r => r.id === selectedRouteId);
-            if (found?.name) setSelectedRouteName(found.name);
+            const found = list.find(route => route.id === selectedRouteId);
+            if (found?.name) {
+              setSelectedRouteName(found.name);
+            }
           }
-        } catch (e) {
-          console.warn('Error loading routes:', e);
+        } catch (error) {
+          console.warn('Error loading routes:', error);
+          setRoutes([]);
         }
       } else {
         setRoutes([]);
@@ -233,16 +208,11 @@ export function EventDetailScreen({
     if (!event || !user) return;
 
     try {
-      // Refresh event to ensure latest joinMode/inviteCode
-      const eventDoc = await firestore()
-        .collection('events')
-        .doc(eventId)
-        .get();
-      if (!eventDoc.exists) {
+      const freshEvent = await dataStore.getEvent(eventId);
+      if (!freshEvent) {
         Alert.alert('Evento no encontrado', 'El evento no existe');
         return;
       }
-      const freshEvent = { id: eventDoc.id, ...eventDoc.data() } as Event;
 
       if (freshEvent.joinMode === 'code') {
         const code = (inviteCode || '').trim().toUpperCase();
@@ -250,58 +220,35 @@ export function EventDetailScreen({
           Alert.alert('Error', 'Ingresa el código de invitación');
           return;
         }
-        if (freshEvent.inviteCode !== code) {
-          Alert.alert(
-            'Código inválido',
-            'El código de invitación no es correcto',
-          );
+        if ((freshEvent.inviteCode || '').toUpperCase() !== code) {
+          Alert.alert('Código inválido', 'El código de invitación no es correcto');
           return;
         }
       }
 
-      // Require route selection if multiple routes
       if (freshEvent.multipleRoutes) {
         const route = (selectedRouteId || '').trim();
         if (!route) {
-          Alert.alert(
-            'Selecciona una ruta',
-            'Debes seleccionar una ruta para unirte',
-          );
+          Alert.alert('Selecciona una ruta', 'Debes seleccionar una ruta para unirte');
           return;
         }
       }
 
-      // Capacity check using current registrations with status 'going'
       if (freshEvent.capacity) {
-        const goingSnap = await firestore()
-          .collection('eventRegistrations')
-          .where('eventId', '==', eventId)
-          .where('status', '==', 'going')
-          .get();
-        if (goingSnap.size >= freshEvent.capacity) {
-          Alert.alert(
-            'Evento lleno',
-            'Este evento ha alcanzado su capacidad máxima',
-          );
+        const goingCount = await dataStore.countParticipants(eventId, ['going']);
+        if (goingCount >= freshEvent.capacity) {
+          Alert.alert('Evento lleno', 'Este evento ha alcanzado su capacidad máxima');
           return;
         }
       }
 
-      // Fetch user + profile for roster entry
-      const userRef = await firestore().collection('users').doc(user.uid).get();
-      if (!userRef.exists) {
-        Alert.alert(
-          'Error de usuario',
-          'No se encontró tu información de usuario',
-        );
+      const userDoc = await dataStore.getUser(user.uid);
+      if (!userDoc) {
+        Alert.alert('Error de usuario', 'No se encontró tu información de usuario');
         return;
       }
-      const userDoc = userRef.data() as any;
-      const profileRef = await firestore()
-        .collection('profiles')
-        .doc(user.uid)
-        .get();
-      const profile = profileRef.exists() ? (profileRef.data() as any) : null;
+
+      const profile = await dataStore.getProfile(user.uid);
 
       const rosterEntry = {
         fullName: profile?.fullName || userDoc.displayName || 'Usuario',
@@ -314,22 +261,19 @@ export function EventDetailScreen({
         avatarUrl: userDoc.photoURL || null,
       };
 
-      const registrationId = `${eventId}_${user.uid}`;
-      const registrationData = {
+      const registrationData: EventRegistration = {
+        id: `${eventId}_${user.uid}`,
         eventId,
         uid: user.uid,
-        routeId: freshEvent.multipleRoutes ? (selectedRouteId as string) : null,
-        status: 'maybe' as const,
+        routeId: freshEvent.multipleRoutes ? selectedRouteId || null : null,
+        status: 'maybe',
         consentEmergencyShare: false,
         rosterEntry,
-        createdAt: firestore.FieldValue.serverTimestamp(),
-        updatedAt: firestore.FieldValue.serverTimestamp(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
-      await firestore()
-        .collection('eventRegistrations')
-        .doc(registrationId)
-        .set(registrationData);
+      await dataStore.upsertRegistration(registrationData);
       await loadEventData();
       setShowInviteInput(false);
       setInviteCode('');
@@ -349,37 +293,21 @@ export function EventDetailScreen({
   const handleJoinEvent = async () => {
     if (!event || !user) return;
     try {
-      // Capacity check using current registrations with status 'going'
       if (event.capacity) {
-        const goingSnap = await firestore()
-          .collection('eventRegistrations')
-          .where('eventId', '==', eventId)
-          .where('status', '==', 'going')
-          .get();
-        if (goingSnap.size >= event.capacity) {
-          Alert.alert(
-            'Evento lleno',
-            'Este evento ha alcanzado su capacidad máxima',
-          );
+        const goingCount = await dataStore.countParticipants(eventId, ['going']);
+        if (goingCount >= event.capacity) {
+          Alert.alert('Evento lleno', 'Este evento ha alcanzado su capacidad máxima');
           return;
         }
       }
 
-      // Fetch user + profile for roster entry
-      const userRef = await firestore().collection('users').doc(user.uid).get();
-      if (!userRef.exists) {
-        Alert.alert(
-          'Error de usuario',
-          'No se encontró tu información de usuario',
-        );
+      const userDoc = await dataStore.getUser(user.uid);
+      if (!userDoc) {
+        Alert.alert('Error de usuario', 'No se encontró tu información de usuario');
         return;
       }
-      const userDoc = userRef.data() as any;
-      const profileRef = await firestore()
-        .collection('profiles')
-        .doc(user.uid)
-        .get();
-      const profile = profileRef.exists() ? (profileRef.data() as any) : null;
+
+      const profile = await dataStore.getProfile(user.uid);
 
       const rosterEntry = {
         fullName: profile?.fullName || userDoc.displayName || 'Usuario',
@@ -392,22 +320,19 @@ export function EventDetailScreen({
         avatarUrl: userDoc.photoURL || null,
       };
 
-      const registrationId = `${eventId}_${user.uid}`;
-      const registrationData = {
+      const registrationData: EventRegistration = {
+        id: `${eventId}_${user.uid}`,
         eventId,
         uid: user.uid,
-        routeId: event.multipleRoutes ? (selectedRouteId as string) : null,
-        status: 'maybe' as const,
+        routeId: event.multipleRoutes ? selectedRouteId || null : null,
+        status: 'maybe',
         consentEmergencyShare: false,
         rosterEntry,
-        createdAt: firestore.FieldValue.serverTimestamp(),
-        updatedAt: firestore.FieldValue.serverTimestamp(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
-      await firestore()
-        .collection('eventRegistrations')
-        .doc(registrationId)
-        .set(registrationData);
+      await dataStore.upsertRegistration(registrationData);
       await loadEventData();
       Alert.alert('¡Te has unido!', 'Ahora puedes confirmar tu asistencia');
     } catch (error) {
@@ -420,25 +345,13 @@ export function EventDetailScreen({
     if (!registration || !user) return;
 
     try {
-      const registrationSnap = await firestore()
-        .collection('eventRegistrations')
-        .where('eventId', '==', eventId)
-        .where('uid', '==', user.uid)
-        .get();
-
-      if (!registrationSnap.empty) {
-        await registrationSnap.docs[0].ref.update({
-          status,
-          updatedAt: firestore.FieldValue.serverTimestamp(),
-        });
-
-        setRegistration({ ...registration, status });
-        await loadEventData();
-        Alert.alert(
-          'Estado actualizado',
-          `Tu estado ha sido cambiado a: ${getStatusText(status)}`,
-        );
-      }
+      await dataStore.updateRegistrationStatus(eventId, user.uid, status);
+      setRegistration({ ...registration, status });
+      await loadEventData();
+      Alert.alert(
+        'Estado actualizado',
+        `Tu estado ha sido cambiado a: ${getStatusText(status)}`,
+      );
     } catch (error) {
       console.error('Error updating status:', error);
       Alert.alert('Error', 'No se pudo actualizar el estado');
@@ -454,11 +367,32 @@ export function EventDetailScreen({
     });
   };
 
-  const formatTimestamp = (timestamp: {
-    _seconds: number;
-    _nanoseconds: number;
-  }): string => {
-    const date = new Date(timestamp._seconds * 1000);
+  const formatTimestamp = (
+    timestamp?:
+      | string
+      | null
+      | {
+          _seconds: number;
+          _nanoseconds?: number;
+        },
+  ): string => {
+    if (!timestamp) {
+      return '';
+    }
+
+    let date: Date;
+    if (typeof timestamp === 'string') {
+      date = new Date(timestamp);
+    } else if (typeof timestamp === 'object' && typeof timestamp._seconds === 'number') {
+      date = new Date(timestamp._seconds * 1000);
+    } else {
+      return '';
+    }
+
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+
     return date.toLocaleString('es-ES', {
       day: 'numeric',
       month: 'short',
@@ -529,11 +463,7 @@ export function EventDetailScreen({
         style: 'destructive',
         onPress: async () => {
           try {
-            const registrationId = `${eventId}_${user.uid}`;
-            await firestore()
-              .collection('eventRegistrations')
-              .doc(registrationId)
-              .delete();
+                  await dataStore.deleteRegistration(eventId, user.uid);
             try {
               const snapshotKey = `emergency_snapshot_${eventId}_${user.uid}`;
               await AsyncStorage.removeItem(snapshotKey);

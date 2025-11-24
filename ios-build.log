@@ -1,0 +1,30 @@
+error Command failed with exit code 74: xcodebuild -list -json -project /Users/eldertavarez/Documents/dev/QRider-Mobile-v2/ios/QRiderRD.xcodeproj
+2025-11-23 14:35:35.588 xcodebuild[71066:28504392] Writing error result bundle to /var/folders/12/t_zk_cvn28v4885qz086q3tm0000gn/T/ResultBundle_2025-23-11_14-35-0035.xcresult
+xcodebuild: error: Could not resolve package dependencies:
+  binary target 'FirebaseFirestoreInternal' could not be mapped to an artifact with expected name 'FirebaseFirestoreInternal'
+  binary target 'absl' could not be mapped to an artifact with expected name 'absl'
+  binary target 'openssl_grpc' could not be mapped to an artifact with expected name 'openssl_grpc'
+  binary target 'GoogleAppMeasurementIdentitySupport' could not be mapped to an artifact with expected name 'GoogleAppMeasurementIdentitySupport'
+  binary target 'GoogleAdsOnDeviceConversion' could not be mapped to an artifact with expected name 'GoogleAdsOnDeviceConversion'
+  Couldn’t update repository submodules:
+.
+Error: Command failed with exit code 74: xcodebuild -list -json -project /Users/eldertavarez/Documents/dev/QRider-Mobile-v2/ios/QRiderRD.xcodeproj
+2025-11-23 14:35:35.588 xcodebuild[71066:28504392] Writing error result bundle to /var/folders/12/t_zk_cvn28v4885qz086q3tm0000gn/T/ResultBundle_2025-23-11_14-35-0035.xcresult
+xcodebuild: error: Could not resolve package dependencies:
+  binary target 'FirebaseFirestoreInternal' could not be mapped to an artifact with expected name 'FirebaseFirestoreInternal'
+  binary target 'absl' could not be mapped to an artifact with expected name 'absl'
+  binary target 'openssl_grpc' could not be mapped to an artifact with expected name 'openssl_grpc'
+  binary target 'GoogleAppMeasurementIdentitySupport' could not be mapped to an artifact with expected name 'GoogleAppMeasurementIdentitySupport'
+  binary target 'GoogleAdsOnDeviceConversion' could not be mapped to an artifact with expected name 'GoogleAdsOnDeviceConversion'
+  Couldn’t update repository submodules:
+
+    at makeError (/Users/eldertavarez/Documents/dev/QRider-Mobile-v2/node_modules/execa/lib/error.js:60:11)
+    at module.exports.sync (/Users/eldertavarez/Documents/dev/QRider-Mobile-v2/node_modules/execa/index.js:194:17)
+    at /Users/eldertavarez/Documents/dev/QRider-Mobile-v2/node_modules/@react-native-community/cli-platform-apple/build/tools/getInfo.js:84:41
+    at Array.reduce (<anonymous>)
+    at getInfo (/Users/eldertavarez/Documents/dev/QRider-Mobile-v2/node_modules/@react-native-community/cli-platform-apple/build/tools/getInfo.js:74:15)
+    at getConfiguration (/Users/eldertavarez/Documents/dev/QRider-Mobile-v2/node_modules/@react-native-community/cli-platform-apple/build/commands/buildCommand/getConfiguration.js:36:37)
+    at Object.func (/Users/eldertavarez/Documents/dev/QRider-Mobile-v2/node_modules/@react-native-community/cli-platform-apple/build/commands/runCommand/createRun.js:126:52)
+    at Command.handleAction (/Users/eldertavarez/Documents/dev/QRider-Mobile-v2/node_modules/@react-native-community/cli/build/index.js:139:23)
+    at Command.listener [as _actionHandler] (/Users/eldertavarez/Documents/dev/QRider-Mobile-v2/node_modules/commander/lib/command.js:482:17)
+    at /Users/eldertavarez/Documents/dev/QRider-Mobile-v2/node_modules/commander/lib/command.js:1283:65

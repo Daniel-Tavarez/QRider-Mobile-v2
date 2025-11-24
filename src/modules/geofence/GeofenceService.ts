@@ -4,9 +4,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // react-native-background-geolocation (TransistorSoft) or implement native geofencing
 // via platform APIs. Below we provide minimal, JS-based fallbacks so the project is
 // no longer dependent on Expo packages.
-import firestore from '@react-native-firebase/firestore';
 import { Alert, Linking, PermissionsAndroid, Platform } from 'react-native';
 import Geolocation from 'react-native-geolocation-service';
+import { dataStore } from '../../lib/localDataStore';
 import { geofenceMonitor } from './GeofenceMonitor';
 import { Checkpoint, GeofenceRegion } from './types';
 
@@ -109,43 +109,10 @@ export class GeofenceService {
     routeId: string | null,
   ): Promise<Checkpoint[]> {
     try {
-      let queryRef = await firestore()
-        .collection('checkpoints')
-        .where('event_id', '==', eventId)
-        .where('active', '==', true);
-
-      if (routeId) {
-        queryRef = queryRef.where('routeId', '==', routeId);
-      }
-
-      const querySnapshot = await queryRef.get();
-
-      const checkpoints: Checkpoint[] = [];
-
-      querySnapshot.forEach(doc => {
-        const data = doc.data() as any;
-        checkpoints.push({
-          id: doc.id,
-          name: data.name,
-          latitude: data.latitude,
-          longitude: data.longitude,
-          radius: data.radius,
-          notify_on_enter: data.notify_on_enter,
-          notify_on_exit: data.notify_on_exit,
-          sequence: data.sequence,
-          active: data.active,
-          event_id: data.event_id,
-          routeId: data.routeId,
-          created_at: data.created_at,
-          updated_at: data.updated_at,
-        });
-      });
-
-      checkpoints.sort((a, b) => a.sequence - b.sequence);
-
-      this.saveCheckpointsLocally(eventId, checkpoints);
-
-      return checkpoints;
+      const checkpoints = await dataStore.getCheckpoints(eventId, routeId);
+      const sorted = checkpoints.slice().sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+      await this.saveCheckpointsLocally(eventId, sorted);
+      return sorted;
     } catch (error) {
       console.error('Error downloading checkpoints:', error);
       return this.getLocalCheckpoints(eventId);
@@ -194,35 +161,13 @@ export class GeofenceService {
         return true;
       }
 
-      let queryRef = await firestore()
-        .collection('checkpoints')
-        .where('event_id', '==', eventId)
-        .where('active', '==', true);
-
-      if (routeId) {
-        queryRef = queryRef.where('routeId', '==', routeId);
-      }
-
-      const querySnapshot = await queryRef.get();
-
-      if (querySnapshot.size !== localCheckpoints.length) {
+      const remoteCheckpoints = await dataStore.getCheckpoints(eventId, routeId);
+      if (remoteCheckpoints.length !== localCheckpoints.length) {
         return true;
       }
 
-      let needsUpdate = false;
-      querySnapshot.forEach(doc => {
-        const data = doc.data();
-        const localCheckpoint = localCheckpoints.find(cp => cp.id === doc.id);
-
-        if (
-          !localCheckpoint ||
-          localCheckpoint.updated_at !== data.updated_at
-        ) {
-          needsUpdate = true;
-        }
-      });
-
-      return needsUpdate;
+      const localMap = new Map(localCheckpoints.map(cp => [cp.id, cp.updated_at]));
+      return remoteCheckpoints.some(cp => localMap.get(cp.id) !== cp.updated_at);
     } catch (error) {
       console.error('Error checking if checkpoints need update:', error);
       return false;
@@ -236,26 +181,16 @@ export class GeofenceService {
       // If there is a routeId in the user's eventRegistration, filter checkpoints by that route
       try {
         if (userId) {
-          const regSnap = await firestore()
-            .collection('eventRegistrations')
-            .where('eventId', '==', eventId)
-            .where('uid', '==', userId)
-            .limit(1)
-            .get();
-          if (!regSnap.empty) {
-            const regData: any = regSnap.docs[0].data();
-            const selectedRouteId: string | undefined = regData?.routeId;
-            if (selectedRouteId) {
-              const filtered = checkpoints.filter((cp: any) =>
-                cp?.routeId ? cp.routeId === selectedRouteId : true,
-              );
-              if (filtered.length > 0) {
-                checkpoints = filtered as any;
-              } else {
-                console.warn(
-                  'No route-matching checkpoints found; using full checkpoint set',
-                );
-              }
+          const registration = await dataStore.getRegistration(eventId, userId);
+          const selectedRouteId: string | undefined | null = registration?.routeId;
+          if (selectedRouteId) {
+            const filtered = checkpoints.filter((cp: any) =>
+              cp?.routeId ? cp.routeId === selectedRouteId : true,
+            );
+            if (filtered.length > 0) {
+              checkpoints = filtered as any;
+            } else {
+              console.warn('No route-matching checkpoints found; using full checkpoint set');
             }
           }
         }
