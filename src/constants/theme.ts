@@ -12,9 +12,12 @@ export const theme = {
     text: '#1A1A1A',
     textLight: '#FFFFFF',
     textSecondary: '#666666',
+    border: '#E0E0E0',
     error: '#F44336',
+    errorLight: '#FFEBEE',
     success: '#00C853',
     warning: '#FFC107',
+    warningLight: '#FFF9E6',
     info: '#00B0FF',
     white: '#FFFFFF',
     black: '#000000',
@@ -93,3 +96,5 @@ export const theme = {
 };
 
 export type Theme = typeof theme;
+
+export const COLORS = theme.colors;
