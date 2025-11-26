@@ -100,7 +100,7 @@ export function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Mi Perfil</Text>
@@ -460,7 +460,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.gray[50],
-    paddingBottom: -theme.spacing.md,
   },
   header: {
     flexDirection: 'row',
@@ -471,6 +470,9 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.md,
     borderEndEndRadius: 20,
     borderStartEndRadius: 20,
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 20,
+    borderTopEndRadius: 0,
   },
   headerTitle: {
     fontSize: theme.typography.h4.fontSize,

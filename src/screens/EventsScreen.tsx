@@ -123,7 +123,7 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Eventos</Text>
@@ -270,7 +270,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.surface,
-    paddingBottom: -theme.spacing.lg,
   },
   header: {
     backgroundColor: theme.colors.primary,

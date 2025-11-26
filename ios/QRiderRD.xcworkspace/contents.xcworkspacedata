@@ -2,6 +2,9 @@
 <Workspace
    version = "1.0">
    <FileRef
+      location = "group:../../../Downloads/san-cristobal-disney-honduras-galeon-na-casita-peralta-azua-.gpx">
+   </FileRef>
+   <FileRef
       location = "group:QRiderRD.xcodeproj">
    </FileRef>
    <FileRef

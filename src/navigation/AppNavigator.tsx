@@ -17,6 +17,7 @@ import { EventsScreen } from '../screens/EventsScreen';
 import { GeofenceDebugScreen } from '../screens/GeofenceDebugScreen';
 import { ParticipantsScreen } from '../screens/ParticipantsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { Platform } from 'react-native';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
@@ -53,8 +54,8 @@ function MainTabs() {
           backgroundColor: theme.colors.primary,
           borderTopWidth: 1,
           paddingTop: 0,
-          paddingBottom: Math.max(insets.bottom, 8),
-          height: 60 + Math.max(insets.bottom, 8),
+          paddingBottom: Platform.OS == 'ios' ? 0 : Math.max(insets.bottom, 8),
+          height: Platform.OS == 'ios' ? 80 : 60 + Math.max(insets.bottom, 8)
         },
         tabBarLabelStyle: {
           fontSize: 12,
