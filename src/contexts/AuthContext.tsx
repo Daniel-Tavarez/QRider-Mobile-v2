@@ -221,7 +221,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     try {
       const profileDoc = await firestore()
-        .collection('userProfiles')
+        .collection('profiles')
         .doc(user.uid)
         .get();
 
@@ -274,7 +274,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           await AsyncStorage.setItem('user', JSON.stringify(userDoc));
 
           const profileDoc = await firestore()
-            .collection('userProfiles')
+            .collection('profiles')
             .doc(firebaseUser.uid)
             .get();
           setHasProfile(profileDoc.exists);

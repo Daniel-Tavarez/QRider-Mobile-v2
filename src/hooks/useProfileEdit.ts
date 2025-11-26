@@ -20,7 +20,7 @@ export const useProfileEdit = () => {
       if (!user) return;
 
       const profileDoc = await db()
-        .collection('userProfiles')
+        .collection('profiles')
         .doc(user.uid)
         .get();
 
@@ -46,15 +46,6 @@ export const useProfileEdit = () => {
   const saveProfile = async (): Promise<boolean> => {
     if (!profile) return false;
 
-    const errors = validateProfile(profile);
-    if (errors.length > 0) {
-      Alert.alert(
-        'Error de validación',
-        'Por favor completa todos los campos requeridos:\n' +
-          errors.map((e) => `• ${e.message}`).join('\n')
-      );
-      return false;
-    }
 
     setSaving(true);
 
@@ -63,7 +54,7 @@ export const useProfileEdit = () => {
       if (!user) throw new Error('No authenticated user');
 
       await db()
-        .collection('userProfiles')
+        .collection('profiles')
         .doc(user.uid)
         .update({
           ...profile,

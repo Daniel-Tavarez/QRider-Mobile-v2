@@ -77,54 +77,87 @@ export interface BikeInfo {
   insurance?: BikeInsuranceInfo;
 }
 
-export type Gender = 'male' | 'female' | 'other' | 'prefer-not-to-say';
-export type VehicleType = 'motorcycle' | 'atv' | 'car' | 'bicycle' | 'other';
-export type EmergencyRelationship = 'spouse' | 'parent' | 'sibling' | 'friend' | 'other';
-
-export interface VehicleInfo {
-  type: VehicleType;
-  brand: string;
-  model: string;
-  year?: string;
-  color: string;
-  plate: string;
+export interface AddressInfo {
+  city?: string;
+  country?: string;
+  state?: string;
 }
 
-export interface PrivacySettings {
-  showFullProfile: boolean;
-  showPhone: boolean;
-  showEmail: boolean;
-  showVehicleInfo: boolean;
-  showMedicalInfo: boolean;
+export interface AeroAmbulanceInfo {
+  enrolled?: boolean;
+  memberId?: string;
+  notes?: string;
+  phone?: string;
+  provider?: string;
+}
+
+export interface BikeInfo {
+  brand?: string;
+  color?: string;
+  model?: string;
+  plate?: string;
+}
+
+export interface ContactInfo {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  relationship: string;
+  whatsapp?: boolean;
+}
+
+export interface InsuranceInfo {
+  provider?: string;
+  planName?: string;
+  policyNumber?: string;
+  isPrimary?: boolean;
+  notes?: string;
+}
+
+export interface PreferredCareInfo {
+  city?: string;
+  clinicName?: string;
+  doctorName?: string;
+  doctorPhone?: string;
+}
+
+export interface PreferencesInfo {
+  showAddress?: boolean;
+  showAeroAmbulance?: boolean;
+  showAllergies?: boolean;
+  showBikeInfo?: boolean;
+  showBloodTypePublic?: boolean;
+  showDOB?: boolean;
+  showInsurances?: boolean;
+  showMedicalNotes?: boolean;
+  showMedications?: boolean;
+  showPreferredCare?: boolean;
 }
 
 export interface UserProfile {
-  userId: string;
-  displayName: string;
-  email: string;
-  phone: string;
-  photoURL?: string;
-
-  birthDate?: string;
-  gender?: Gender;
-  nationality?: string;
+  uid: string;
+  fullName: string;
+  nickname?: string;
+  primaryPhone: string;
+  secondaryPhone?: string;
+  dateOfBirth?: string;
+  nationalId?: string;
 
   bloodType?: BloodType;
   allergies?: string;
   medications?: string;
-  medicalConditions?: string;
+  medicalNotes?: string;
 
-  emergencyContact?: {
-    name: string;
-    phone: string;
-    relationship: EmergencyRelationship;
-  };
+  contacts: ContactInfo[];
+  insurances?: InsuranceInfo[];
 
-  vehicleInfo?: VehicleInfo;
+  address?: AddressInfo;
+  aeroAmbulance?: AeroAmbulanceInfo;
+  bike?: BikeInfo;
+  preferredCare?: PreferredCareInfo;
+  preferences?: PreferencesInfo;
 
-  privacy: PrivacySettings;
-
-  createdAt: FirebaseFirestoreTypes.Timestamp;
   updatedAt: FirebaseFirestoreTypes.Timestamp;
 }
 

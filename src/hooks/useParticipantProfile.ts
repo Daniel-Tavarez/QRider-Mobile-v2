@@ -22,7 +22,7 @@ export const useParticipantProfile = (userId: string) => {
       setIsOwnProfile(isOwner);
 
       const profileDoc = await db()
-        .collection('userProfiles')
+        .collection('profiles')
         .doc(userId)
         .get();
 

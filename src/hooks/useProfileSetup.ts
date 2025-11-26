@@ -3,45 +3,35 @@ import { Alert } from 'react-native';
 import { db, auth } from '../lib/firebase';
 import {
   UserProfile,
-  Gender,
   BloodType,
-  VehicleType,
-  EmergencyRelationship,
+  ContactInfo,
 } from '../types';
-import { validatePersonalInfo, validateMedicalInfo } from '../utils/validation';
 
 interface ProfileSetupData {
-  displayName: string;
-  phone: string;
-  birthDate?: Date;
-  gender?: Gender;
-  nationality?: string;
-  photoURL?: string;
+  fullName: string;
+  nickname?: string;
+  primaryPhone: string;
+  secondaryPhone?: string;
+  dateOfBirth?: Date;
+  nationalId?: string;
   bloodType?: BloodType;
   allergies?: string;
   medications?: string;
-  medicalConditions?: string;
-  emergencyContactName: string;
-  emergencyContactPhone: string;
-  emergencyContactRelationship?: EmergencyRelationship;
-  hasVehicle: boolean;
-  vehicleType?: VehicleType;
-  vehicleBrand?: string;
-  vehicleModel?: string;
-  vehicleYear?: string;
-  vehicleColor?: string;
-  vehiclePlate?: string;
+  medicalNotes?: string;
+  contacts: ContactInfo[];
+  bikeBrand?: string;
+  bikeModel?: string;
+  bikeColor?: string;
+  bikePlate?: string;
 }
 
 export const useProfileSetup = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<ProfileSetupData>({
-    displayName: '',
-    phone: '',
-    emergencyContactName: '',
-    emergencyContactPhone: '',
-    hasVehicle: false,
+    fullName: '',
+    primaryPhone: '',
+    contacts: [],
   });
 
   const updateFormData = (data: Partial<ProfileSetupData>) => {
@@ -50,33 +40,19 @@ export const useProfileSetup = () => {
 
   const validateCurrentStep = (): boolean => {
     if (currentStep === 1) {
-      const errors = validatePersonalInfo({
-        displayName: formData.displayName,
-        email: auth().currentUser?.email || '',
-        phone: formData.phone,
-        birthDate: formData.birthDate
-          ? formData.birthDate.toISOString().split('T')[0]
-          : undefined,
-      });
-
-      if (errors.length > 0) {
-        Alert.alert('Error de validación', errors[0].message);
+      if (!formData.fullName || formData.fullName.length < 3) {
+        Alert.alert('Error', 'El nombre debe tener al menos 3 caracteres');
+        return false;
+      }
+      if (!formData.primaryPhone || formData.primaryPhone.length < 10) {
+        Alert.alert('Error', 'El teléfono es inválido');
         return false;
       }
     }
 
     if (currentStep === 2) {
-      const errors = validateMedicalInfo({
-        bloodType: formData.bloodType,
-        emergencyContact: {
-          name: formData.emergencyContactName,
-          phone: formData.emergencyContactPhone,
-          relationship: formData.emergencyContactRelationship || 'other',
-        },
-      });
-
-      if (errors.length > 0) {
-        Alert.alert('Error de validación', errors[0].message);
+      if (formData.contacts.length === 0) {
+        Alert.alert('Error', 'Debes agregar al menos un contacto de emergencia');
         return false;
       }
     }
@@ -103,52 +79,41 @@ export const useProfileSetup = () => {
         throw new Error('No authenticated user');
       }
 
-      const profileData: Omit<UserProfile, 'createdAt' | 'updatedAt'> = {
-        userId: user.uid,
-        displayName: formData.displayName,
-        email: user.email || '',
-        phone: formData.phone,
-        photoURL: formData.photoURL,
-        birthDate: formData.birthDate
-          ? formData.birthDate.toISOString().split('T')[0]
+      const profileData: Partial<UserProfile> = {
+        uid: user.uid,
+        fullName: formData.fullName,
+        nickname: formData.nickname,
+        primaryPhone: formData.primaryPhone,
+        secondaryPhone: formData.secondaryPhone,
+        dateOfBirth: formData.dateOfBirth
+          ? formData.dateOfBirth.toISOString().split('T')[0]
           : undefined,
-        gender: formData.gender,
-        nationality: formData.nationality,
+        nationalId: formData.nationalId,
         bloodType: formData.bloodType,
         allergies: formData.allergies,
         medications: formData.medications,
-        medicalConditions: formData.medicalConditions,
-        emergencyContact: {
-          name: formData.emergencyContactName,
-          phone: formData.emergencyContactPhone,
-          relationship: formData.emergencyContactRelationship || 'other',
-        },
-        ...(formData.hasVehicle &&
-          formData.vehicleType && {
-            vehicleInfo: {
-              type: formData.vehicleType,
-              brand: formData.vehicleBrand || '',
-              model: formData.vehicleModel || '',
-              year: formData.vehicleYear,
-              color: formData.vehicleColor || '',
-              plate: formData.vehiclePlate || '',
-            },
-          }),
-        privacy: {
-          showFullProfile: true,
-          showPhone: true,
-          showEmail: true,
-          showVehicleInfo: true,
-          showMedicalInfo: false,
+        medicalNotes: formData.medicalNotes,
+        contacts: formData.contacts,
+        bike: (formData.bikeBrand || formData.bikeModel || formData.bikeColor || formData.bikePlate) ? {
+          brand: formData.bikeBrand,
+          model: formData.bikeModel,
+          color: formData.bikeColor,
+          plate: formData.bikePlate,
+        } : undefined,
+        preferences: {
+          showBloodTypePublic: true,
+          showBikeInfo: true,
+          showAllergies: false,
+          showMedicalNotes: false,
+          showMedications: false,
         },
       };
 
       await db()
-        .collection('userProfiles')
+        .collection('profiles')
         .doc(user.uid)
         .set({
           ...profileData,
-          createdAt: db.FieldValue.serverTimestamp(),
           updatedAt: db.FieldValue.serverTimestamp(),
         });
 

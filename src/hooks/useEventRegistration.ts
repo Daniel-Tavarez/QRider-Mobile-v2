@@ -57,7 +57,7 @@ export const useEventRegistration = (eventId: string) => {
             .collection('routes')
             .where('active', '==', true)
             .get(),
-          db().collection('userProfiles').doc(user.uid).get(),
+          db().collection('profiles').doc(user.uid).get(),
           db()
             .collection('eventRegistrations')
             .where('eventId', '==', eventId)
