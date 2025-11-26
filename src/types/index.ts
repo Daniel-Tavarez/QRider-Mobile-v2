@@ -77,6 +77,57 @@ export interface BikeInfo {
   insurance?: BikeInsuranceInfo;
 }
 
+export type Gender = 'male' | 'female' | 'other' | 'prefer-not-to-say';
+export type VehicleType = 'motorcycle' | 'atv' | 'car' | 'bicycle' | 'other';
+export type EmergencyRelationship = 'spouse' | 'parent' | 'sibling' | 'friend' | 'other';
+
+export interface VehicleInfo {
+  type: VehicleType;
+  brand: string;
+  model: string;
+  year?: string;
+  color: string;
+  plate: string;
+}
+
+export interface PrivacySettings {
+  showFullProfile: boolean;
+  showPhone: boolean;
+  showEmail: boolean;
+  showVehicleInfo: boolean;
+  showMedicalInfo: boolean;
+}
+
+export interface UserProfile {
+  userId: string;
+  displayName: string;
+  email: string;
+  phone: string;
+  photoURL?: string;
+
+  birthDate?: string;
+  gender?: Gender;
+  nationality?: string;
+
+  bloodType?: BloodType;
+  allergies?: string;
+  medications?: string;
+  medicalConditions?: string;
+
+  emergencyContact?: {
+    name: string;
+    phone: string;
+    relationship: EmergencyRelationship;
+  };
+
+  vehicleInfo?: VehicleInfo;
+
+  privacy: PrivacySettings;
+
+  createdAt: FirebaseFirestoreTypes.Timestamp;
+  updatedAt: FirebaseFirestoreTypes.Timestamp;
+}
+
 export interface Profile {
   uid: string;
   fullName: string;
@@ -91,7 +142,6 @@ export interface Profile {
   secondaryPhone?: string;
   contacts: EmergencyContact[];
   updatedAt: FirebaseFirestoreTypes.Timestamp;
-  // Extended fields
   insurances?: InsuranceInfo[];
   address?: AddressInfo;
   preferences?: PreferencesInfo;
@@ -100,11 +150,28 @@ export interface Profile {
   bike?: BikeInfo;
 }
 
+export interface RegistrationFields {
+  displayName: boolean;
+  email: boolean;
+  phone: boolean;
+  birthDate: boolean;
+  bloodType: boolean;
+  emergencyContact: boolean;
+  emergencyPhone: boolean;
+  vehicleInfo: boolean;
+}
+
 export interface Event {
   id: string;
   title: string;
+  name?: string;
+  description?: string;
   date: string;
   startTime?: string;
+  location?: string;
+  status?: 'draft' | 'published' | 'active' | 'finished';
+  organizerId?: string;
+  registrationFields?: RegistrationFields;
   meetingPoint: {
     lat?: number;
     lng?: number;
@@ -112,7 +179,7 @@ export interface Event {
     mapUrl?: string;
     routeUrl?: string;
   };
-  difficulty?: 'easy' | 'med' | 'hard';
+  difficulty?: 'easy' | 'medium' | 'hard' | 'med';
   notes?: string;
   createdBy: string;
   joinMode: 'public' | 'code';
@@ -136,10 +203,25 @@ export interface Event {
 export interface EventRegistration {
   id?: string;
   eventId: string;
+  userId: string;
   uid: string;
-  routeId?: string;
-  status: 'going' | 'maybe' | 'notgoing';
-  consentEmergencyShare: boolean;
+  routeId: string;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'going' | 'maybe' | 'notgoing';
+  registrationDate: FirebaseFirestoreTypes.Timestamp;
+  consentEmergencyShare?: boolean;
+
+  displayName: string;
+  email: string;
+  phone: string;
+  birthDate?: string;
+  bloodType?: string;
+  emergencyContact?: {
+    name: string;
+    phone: string;
+    relationship: string;
+  };
+  vehicleInfo?: VehicleInfo;
+
   createdAt: FirebaseFirestoreTypes.Timestamp;
   updatedAt: FirebaseFirestoreTypes.Timestamp;
 }
@@ -150,6 +232,10 @@ export interface RouteDoc {
   description?: string;
   eventId: string;
   active?: boolean;
+  distance?: number;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  maxParticipants?: number;
+  currentParticipants: number;
 }
 
 export interface Checkpoint {
@@ -180,11 +266,21 @@ export interface CheckpointProgress {
   exitLongitude?: number;
 }
 
+export interface ParticipantStats {
+  totalEvents: number;
+  bestPosition?: number;
+  lastEvent?: string;
+}
+
 export type RootStackParamList = {
   Main: undefined;
   Auth: undefined;
+  ProfileSetup: undefined;
+  ProfileEdit: undefined;
   EventDetail: { eventId: string };
+  EventRegistration: { eventId: string };
+  ParticipantProfile: { userId: string; eventId?: string };
   GeofenceDebug: { eventId: string; userId: string };
   Participants: { eventId: string };
-  Checkpoints: { eventId: string; userId: string, routeId: string | null };
+  Checkpoints: { eventId: string; userId: string; routeId: string | null };
 };
