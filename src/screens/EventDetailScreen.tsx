@@ -912,85 +912,26 @@ export function EventDetailScreen({
 
         {!registration && !isAdmin ? (
           <Card style={styles.joinCard}>
+            <Text style={styles.joinTitle}>Inscribirse al Evento</Text>
+            <Text style={styles.joinMessage}>
+              Completa tu inscripción con tu información de perfil.
+            </Text>
+            <Button
+              title="Inscribirme"
+              onPress={() => navigation.navigate('EventRegistration', { eventId: event.id })}
+              style={styles.joinButton}
+            />
             {event.multipleRoutes && routes.length > 0 && (
-              <View style={{ marginBottom: theme.spacing.md }}>
-                <Text style={styles.joinTitle}>Selecciona una ruta</Text>
+              <View style={{ marginTop: theme.spacing.md }}>
+                <Text style={styles.detailLabel}>Rutas disponibles:</Text>
                 {routes.map(r => (
-                  <TouchableOpacity
-                    key={r.id}
-                    style={[
-                      selectedRouteId === r.id
-                        ? styles.statusButtonRouteSelected
-                        : styles.statusButton,
-                    ]}
-                    onPress={() => {
-                      setSelectedRouteId(r.id);
-                      setSelectedRouteName(r.name || null);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        selectedRouteId === r.id ? styles.statusButtonTextActiveRoute : styles.statusButtonText
-                      ]}
-                    >
-                      {r.name}
-                    </Text>
-                  </TouchableOpacity>
+                  <View key={r.id} style={styles.routeItem}>
+                    <Text style={styles.routeName}>{r.name}</Text>
+                    {r.description && (
+                      <Text style={styles.routeDescription}>{r.description}</Text>
+                    )}
+                  </View>
                 ))}
-              </View>
-            )}
-            {event.joinMode === 'code' && !showInviteInput ? (
-              <View>
-                <Text style={styles.joinTitle}>Evento Privado</Text>
-                <Text style={styles.joinMessage}>
-                  Este evento requiere un código de invitación para unirse.
-                </Text>
-                <Button
-                  title="Ingresar código"
-                  onPress={() => setShowInviteInput(true)}
-                  style={styles.joinButton}
-                />
-              </View>
-            ) : event.joinMode === 'code' && showInviteInput ? (
-              <View>
-                <Text style={styles.joinTitle}>Código de Invitación</Text>
-                <TextInput
-                  style={styles.codeInput}
-                  value={inviteCode}
-                  onChangeText={t => setInviteCode((t || '').toUpperCase())}
-                  placeholder="Ingresa el código"
-                  autoCapitalize="characters"
-                />
-                <View style={styles.codeButtons}>
-                  <Button
-                    title="Cancelar"
-                    onPress={() => {
-                      setShowInviteInput(false);
-                      setInviteCode('');
-                    }}
-                    variant="outline"
-                    style={styles.codeButton}
-                  />
-                  <Button
-                    title="Unirse"
-                    onPress={handleJoinWithCode}
-                    style={styles.codeButton}
-                    disabled={event.multipleRoutes ? !selectedRouteId : false}
-                  />
-                </View>
-              </View>
-            ) : (
-              <View>
-                <Text style={styles.joinTitle}>Unirse al Evento</Text>
-                <Text style={styles.joinMessage}>
-                  ¿Te gustaría participar en este evento?
-                </Text>
-                <Button
-                  title="Unirse al evento"
-                  onPress={handleJoinEvent}
-                  style={styles.joinButton}
-                  disabled={event.multipleRoutes ? !selectedRouteId : false}
-                />
               </View>
             )}
           </Card>
@@ -1457,5 +1398,20 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     marginLeft: theme.spacing.xs,
     fontWeight: '600',
+  },
+  routeItem: {
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.gray[200],
+  },
+  routeName: {
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
+  },
+  routeDescription: {
+    fontSize: theme.typography.caption.fontSize,
+    color: theme.colors.textSecondary,
   },
 });

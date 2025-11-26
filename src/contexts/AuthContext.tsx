@@ -17,6 +17,8 @@ interface AuthContextType {
   user: FirebaseAuthTypes.User | null;
   userData: User | null;
   loading: boolean;
+  hasProfile: boolean;
+  checkProfile: () => Promise<boolean>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
@@ -42,6 +44,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
   const [userData, setUserData] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasProfile, setHasProfile] = useState(false);
   console.log(user)
   const generateSlug = (): string => {
     return Math.random().toString(36).substring(2, 10);
@@ -213,6 +216,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await auth().sendPasswordResetEmail(email);
   };
 
+  const checkProfile = async (): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const profileDoc = await firestore()
+        .collection('userProfiles')
+        .doc(user.uid)
+        .get();
+
+      const exists = profileDoc.exists;
+      setHasProfile(exists);
+      return exists;
+    } catch (error) {
+      console.error('Error checking profile:', error);
+      return false;
+    }
+  };
+
   useEffect(() => {
     console.log('AuthContext: Setting up auth listener');
 
@@ -251,6 +272,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           setUserData(userDoc);
           await AsyncStorage.setItem('user', JSON.stringify(userDoc));
+
+          const profileDoc = await firestore()
+            .collection('userProfiles')
+            .doc(firebaseUser.uid)
+            .get();
+          setHasProfile(profileDoc.exists);
         } catch (error) {
           console.error('Error fetching user data:', error);
           // Fallback offline: intenta cargar desde caché local
@@ -266,6 +293,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // On any auth loss, stop geofencing and clear user cache
         try { await geofenceService.stopGeofencing(); } catch {}
         setUserData(null);
+        setHasProfile(false);
         await AsyncStorage.removeItem('user');
       }
 
@@ -282,6 +310,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     user,
     userData,
     loading,
+    hasProfile,
+    checkProfile,
     signIn,
     signInWithGoogle,
     signUp,

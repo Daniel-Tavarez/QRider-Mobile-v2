@@ -17,6 +17,10 @@ import { EventsScreen } from '../screens/EventsScreen';
 import { GeofenceDebugScreen } from '../screens/GeofenceDebugScreen';
 import { ParticipantsScreen } from '../screens/ParticipantsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { ProfileSetupScreen } from '../screens/ProfileSetupScreen';
+import { ProfileEditScreen } from '../screens/ProfileEditScreen';
+import { EventRegistrationScreen } from '../screens/EventRegistrationScreen';
+import { ParticipantProfileScreen } from '../screens/ParticipantProfileScreen';
 import { Platform } from 'react-native';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -80,7 +84,7 @@ function MainTabs() {
 }
 
 export function AppNavigator() {
-  const { user, loading } = useAuth();
+  const { user, loading, hasProfile } = useAuth();
 
   if (loading) {
     return <LoadingSpinner text="Iniciando QRider..." />;
@@ -96,27 +100,55 @@ export function AppNavigator() {
       >
         {user ? (
           <>
-            <Stack.Screen name="Main" component={MainTabs} />
-            <Stack.Screen
-              name="EventDetail"
-              component={EventDetailScreen}
-              options={{ title: 'Detalle del Evento' }}
-            />
-            <Stack.Screen
-              name="GeofenceDebug"
-              component={GeofenceDebugScreen}
-              options={{ title: 'Geofence Debug' }}
-            />
-            <Stack.Screen
-              name="Participants"
-              component={ParticipantsScreen}
-              options={{ title: 'Participantes' }}
-            />
-            <Stack.Screen
-              name="Checkpoints"
-              component={CheckpointsScreen}
-              options={{ title: 'Checkpoints' }}
-            />
+            {!hasProfile ? (
+              <Stack.Screen
+                name="ProfileSetup"
+                component={ProfileSetupScreen}
+                options={{
+                  headerShown: false,
+                  gestureEnabled: false,
+                }}
+              />
+            ) : (
+              <>
+                <Stack.Screen name="Main" component={MainTabs} />
+                <Stack.Screen
+                  name="EventDetail"
+                  component={EventDetailScreen}
+                  options={{ title: 'Detalle del Evento' }}
+                />
+                <Stack.Screen
+                  name="EventRegistration"
+                  component={EventRegistrationScreen}
+                  options={{ headerShown: true, title: 'Inscripción' }}
+                />
+                <Stack.Screen
+                  name="ProfileEdit"
+                  component={ProfileEditScreen}
+                  options={{ headerShown: true, title: 'Editar Perfil' }}
+                />
+                <Stack.Screen
+                  name="ParticipantProfile"
+                  component={ParticipantProfileScreen}
+                  options={{ headerShown: true, title: 'Perfil' }}
+                />
+                <Stack.Screen
+                  name="GeofenceDebug"
+                  component={GeofenceDebugScreen}
+                  options={{ title: 'Geofence Debug' }}
+                />
+                <Stack.Screen
+                  name="Participants"
+                  component={ParticipantsScreen}
+                  options={{ title: 'Participantes' }}
+                />
+                <Stack.Screen
+                  name="Checkpoints"
+                  component={CheckpointsScreen}
+                  options={{ title: 'Checkpoints' }}
+                />
+              </>
+            )}
           </>
         ) : (
           <Stack.Screen name="Auth" component={AuthScreen} />
