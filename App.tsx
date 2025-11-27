@@ -11,8 +11,9 @@ function App() {
   return (
     <SafeAreaProvider>
       <StatusBar 
-        barStyle={'dark-content'}
-        backgroundColor={theme.colors.black}
+        barStyle="light-content"
+        backgroundColor={theme.colors.primary}
+        translucent={false}
       />
       <AuthProvider>
         <AppNavigator />

@@ -122,11 +122,47 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
     return <LoadingSpinner text="Cargando eventos..." />;
   }
 
+  const upcomingEvents = events.filter(e => !isEventPast(e.date));
+  const pastEvents = events.filter(e => isEventPast(e.date));
+
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Eventos</Text>
+      <View style={styles.hero}>
+        <View style={styles.heroHeader}>
+          <View>
+            <Text style={styles.heroKicker}>Próximas rutas</Text>
+            <Text style={styles.heroTitle}>Eventos & checkpoints</Text>
+            <Text style={styles.heroSubtitle}>
+              Consulta los rides activos, confirma asistencia y revisa notas antes de salir.
+            </Text>
+          </View>
+          <View style={styles.heroBadge}>
+            <Icon name="calendar" size={20} color={theme.colors.primary} />
+            <Text style={styles.heroBadgeText}>
+              {upcomingEvents.length} activos
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.metricsRow}>
+          <View style={styles.metricCard}>
+            <Text style={styles.metricLabel}>Eventos activos</Text>
+            <Text style={styles.metricValue}>{upcomingEvents.length}</Text>
+          </View>
+          <View style={styles.metricCard}>
+            <Text style={styles.metricLabel}>Finalizados</Text>
+            <Text style={styles.metricValueMuted}>{pastEvents.length}</Text>
+          </View>
+          <View style={styles.metricCard}>
+            <Text style={styles.metricLabel}>Asistentes</Text>
+            <Text style={styles.metricValue}>
+              {events.reduce(
+                (acc, ev) => acc + (participantCounts[ev.id] || 0),
+                0,
+              )}
+            </Text>
+          </View>
+        </View>
       </View>
 
       <ScrollView
@@ -134,10 +170,16 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        showsVerticalScrollIndicator={false}
       >
         {events.length > 0 ? (
           events.map((event, index) => {
             const isLast = index === events.length - 1;
+            const going = participantCounts[event.id] || 0;
+            const capacityCopy = event.capacity
+              ? `${going}/${event.capacity}`
+              : `${going} confirmados`;
+            const isPast = isEventPast(event.date);
 
             return (
               <TouchableOpacity
@@ -145,73 +187,62 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
                 onPress={() =>
                   navigation.navigate('EventDetail', { eventId: event.id })
                 }
-                activeOpacity={0.7}
+                activeOpacity={0.85}
               >
                 <Card
                   style={StyleSheet.flatten([
                     styles.eventCard,
                     isLast && styles.eventItemLast,
+                    isPast && styles.eventCardPast,
                   ])}
                 >
-                  <View style={styles.eventHeader}>
-                    <View style={styles.eventInfo}>
-                      <Text style={styles.eventTitle}>{event.title}</Text>
-                      <View style={styles.eventMeta}>
-                        <View style={styles.eventDate}>
-                          <Icon
-                            name="calendar"
-                            size={16}
-                            color={theme.colors.textSecondary}
-                          />
-                          <Text style={styles.eventDateText}>
-                            {formatDate(event.date)}
+                  <View style={styles.eventTopRow}>
+                    <View style={styles.eventBadgeRow}>
+                      <View style={styles.chip}>
+                        <Icon
+                          name="calendar"
+                          size={16}
+                          color={theme.colors.white}
+                        />
+                        <Text style={styles.chipText}>
+                          {formatDate(event.date)}
+                        </Text>
+                        {event.startTime && (
+                          <Text style={styles.chipTextMuted}>
+                            · {event.startTime}
                           </Text>
-                          {event.startTime && (
-                            <Text style={styles.eventTime}>
-                              {event.startTime}
-                            </Text>
-                          )}
-                        </View>
-                        {isEventPast(event.date) && (
-                          <View style={styles.pastBadge}>
-                            <Text style={styles.pastText}>Finalizado</Text>
-                          </View>
                         )}
                       </View>
-                    </View>
-                    <View style={styles.eventBadges}>
-                      {event.createdBy === user?.uid && (
-                        <View style={styles.adminBadge}>
-                          <Text style={styles.adminText}>Admin</Text>
-                        </View>
-                      )}
                       {event.difficulty && (
                         <View
                           style={[
-                            styles.difficultyBadge,
-                            {
-                              backgroundColor: getDifficultyColor(
-                                event.difficulty,
-                              ),
-                            },
+                            styles.difficultyPill,
+                            { backgroundColor: getDifficultyColor(event.difficulty) },
                           ]}
                         >
-                          <Text style={styles.difficultyText}>
+                          <Text style={styles.difficultyPillText}>
                             {getDifficultyText(event.difficulty)}
                           </Text>
                         </View>
                       )}
                     </View>
+                    {event.createdBy === user?.uid && (
+                      <View style={styles.adminChip}>
+                        <Text style={styles.adminChipText}>Admin</Text>
+                      </View>
+                    )}
                   </View>
 
-                  {event.meetingPoint.text && (
+                  <Text style={styles.eventTitle}>{event.title}</Text>
+
+                  {event.meetingPoint?.text && (
                     <View style={styles.meetingPoint}>
                       <Icon
                         name="location"
                         size={16}
                         color={theme.colors.textSecondary}
                       />
-                      <Text style={styles.meetingPointText}>
+                      <Text style={styles.meetingPointText} numberOfLines={2}>
                         {event.meetingPoint.text}
                       </Text>
                     </View>
@@ -225,23 +256,22 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
 
                   <View style={styles.eventFooter}>
                     <View style={styles.capacityInfo}>
-                      <Icon
-                        name="people"
-                        size={16}
-                        color={theme.colors.textSecondary}
-                      />
-                      <Text style={styles.capacityText}>
-                        {event.capacity
-                          ? `${participantCounts[event.id] || 0}/${
-                              event.capacity
-                            }`
-                          : `${participantCounts[event.id] || 0} confirmados`}
-                      </Text>
+                      <View style={styles.capacityBadge}>
+                        <Icon
+                          name="people"
+                          size={16}
+                          color={theme.colors.white}
+                        />
+                        <Text style={styles.capacityText}>{capacityCopy}</Text>
+                      </View>
+                      {isPast && (
+                        <Text style={styles.pastText}>Finalizado</Text>
+                      )}
                     </View>
                     <Icon
                       name="chevron-forward"
-                      size={20}
-                      color={theme.colors.gray[400]}
+                      size={22}
+                      color={theme.colors.gray[500]}
                     />
                   </View>
                 </Card>
@@ -269,128 +299,163 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
-  },
-  header: {
     backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
   },
-  headerTitle: {
-    fontSize: theme.typography.h4.fontSize,
-    fontWeight: 'bold',
+  hero: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
+    backgroundColor: theme.colors.primary,
+  },
+  heroHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: theme.spacing.md,
+  },
+  heroKicker: {
     color: theme.colors.white,
-    textAlign: 'center',
-    letterSpacing: 0.5,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: theme.spacing.xs,
+  },
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: theme.colors.white,
+    marginBottom: theme.spacing.xs,
+  },
+  heroSubtitle: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  heroBadge: {
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  heroBadgeText: {
+    color: theme.colors.white,
+    fontWeight: '700',
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.lg,
+  },
+  metricCard: {
+    flex: 1,
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[100],
+  },
+  metricLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: 13,
+    marginBottom: theme.spacing.xs,
+  },
+  metricValue: {
+    color: theme.colors.text,
+    fontWeight: '800',
+    fontSize: 22,
+  },
+  metricValueMuted: {
+    color: theme.colors.text,
+    fontWeight: '800',
+    fontSize: 22,
   },
   content: {
     flex: 1,
     padding: theme.spacing.lg,
+    paddingTop: theme.spacing.sm,
+    backgroundColor: theme.colors.gray[50],
   },
   eventCard: {
     marginBottom: theme.spacing.lg,
-    borderLeftWidth: 4,
-    borderLeftColor: theme.colors.primary,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[100],
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.xl,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
+    padding: theme.spacing.lg,
   },
   eventItemLast: {
     marginBottom: theme.spacing.xxl,
   },
-  eventHeader: {
+  eventCardPast: {
+    opacity: 0.8,
+  },
+  eventTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: theme.spacing.md,
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
   },
-  eventInfo: {
-    flex: 1,
-    marginRight: theme.spacing.md,
+  eventBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 8,
+    borderRadius: theme.borderRadius.full,
+    gap: theme.spacing.xs,
+  },
+  chipText: {
+    color: theme.colors.white,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  chipTextMuted: {
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  difficultyPill: {
+    borderRadius: theme.borderRadius.full,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 8,
+  },
+  difficultyPillText: {
+    color: theme.colors.white,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  adminChip: {
+    backgroundColor: theme.colors.secondary,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 8,
+    borderRadius: theme.borderRadius.full,
+  },
+  adminChipText: {
+    color: theme.colors.white,
+    fontWeight: '700',
+    fontSize: 12,
   },
   eventTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: theme.colors.text,
     marginBottom: theme.spacing.sm,
-    letterSpacing: 0.3,
-  },
-  eventMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: theme.spacing.sm,
-  },
-  eventDate: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  eventDateText: {
-    fontSize: theme.typography.caption.fontSize,
-    color: theme.colors.textSecondary,
-    marginLeft: theme.spacing.xs,
-  },
-  eventTime: {
-    fontSize: theme.typography.caption.fontSize,
-    color: theme.colors.text,
-    fontWeight: '600',
-    marginLeft: theme.spacing.sm,
-  },
-  pastBadge: {
-    backgroundColor: theme.colors.gray[400],
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.borderRadius.sm,
-  },
-  pastText: {
-    color: theme.colors.white,
-    fontSize: theme.typography.small.fontSize,
-    fontWeight: '600',
-  },
-  eventBadges: {
-    alignItems: 'flex-end',
-    gap: theme.spacing.xs,
-  },
-  joinModeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.borderRadius.sm,
-  },
-  joinModeText: {
-    color: theme.colors.white,
-    fontSize: theme.typography.small.fontSize,
-    fontWeight: '600',
-    marginLeft: theme.spacing.xs,
-  },
-  difficultyBadge: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 6,
-    borderRadius: theme.borderRadius.full,
-  },
-  difficultyText: {
-    color: theme.colors.white,
-    fontSize: theme.typography.small.fontSize,
-    fontWeight: '600',
-  },
-  adminBadge: {
-    backgroundColor: theme.colors.secondary,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 6,
-    borderRadius: theme.borderRadius.full,
-  },
-  adminText: {
-    color: theme.colors.white,
-    fontSize: theme.typography.small.fontSize,
-    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   meetingPoint: {
     flexDirection: 'row',
@@ -414,14 +479,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  capacityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.full,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 6,
+  },
   capacityInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: theme.spacing.sm,
   },
   capacityText: {
-    fontSize: theme.typography.caption.fontSize,
+    fontSize: 13,
+    color: theme.colors.white,
+    fontWeight: '700',
+  },
+  pastText: {
     color: theme.colors.textSecondary,
-    marginLeft: theme.spacing.xs,
+    fontSize: 13,
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,

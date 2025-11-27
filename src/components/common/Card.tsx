@@ -20,6 +20,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: theme.colors.white,
     borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[100],
     shadowColor: '#000',
     shadowOffset: {
       width: 0,

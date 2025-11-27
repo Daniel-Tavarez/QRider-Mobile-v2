@@ -83,7 +83,7 @@ export const GeofenceDebugScreen: React.FC<GeofenceDebugScreenProps> = ({ route,
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
+          <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Geofence Debug</Text>
       </View>
@@ -244,15 +244,16 @@ export const GeofenceDebugScreen: React.FC<GeofenceDebugScreenProps> = ({ route,
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.gray[50],
   },
   header: {
-    backgroundColor: theme.colors.primary,
-    paddingTop: 50,
-    paddingBottom: 20,
+    paddingTop: 32,
+    paddingBottom: 12,
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: theme.colors.primary,
+    borderBottomWidth: 0,
   },
   backButton: {
     marginRight: 15,
@@ -264,7 +265,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: theme.colors.white,
     flex: 1,
   },

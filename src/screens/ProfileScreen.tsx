@@ -40,6 +40,7 @@ export function ProfileScreen() {
     if (!html) return '';
     return html.replace(/<[^>]+>/g, '').trim();
   };
+
   useEffect(() => {
     loadProfile();
   }, [user]);
@@ -55,20 +56,17 @@ export function ProfileScreen() {
       if (profileDoc.exists()) {
         const data = profileDoc.data() as Profile;
         setProfile(data);
-        // Cache local para offline
         await AsyncStorage.setItem(`profile:${user.uid}`, JSON.stringify(data));
       } else {
-        // Si no existe en server, intenta cache
         const cached = await AsyncStorage.getItem(`profile:${user.uid}`);
         if (cached) setProfile(JSON.parse(cached) as Profile);
       }
     } catch (error) {
       console.error('Error loading profile:', error);
-      // Fallback offline: usar cache si existe
       try {
         const cached = await AsyncStorage.getItem(`profile:${user.uid}`);
         if (cached) setProfile(JSON.parse(cached) as Profile);
-      } catch {}
+      } catch { }
     } finally {
       setLoading(false);
     }
@@ -101,16 +99,23 @@ export function ProfileScreen() {
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Mi Perfil</Text>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Icon name="log-out-outline" size={24} color={theme.colors.white} />
-        </TouchableOpacity>
-      </View>
+      <View style={styles.hero}>
+        <View style={styles.heroTopRow}>
+          <View>
+            <View style={styles.topRow}>
+              <Text style={styles.heroKicker}>Tu identidad</Text>
+              <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                <Icon name="log-out-outline" size={20} color={theme.colors.white} />
+                <Text style={styles.logoutText}>Salir</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.heroTitle}>Perfil QRider</Text>
+            <Text style={styles.heroSubtitle}>
+              Datos de emergencia, contactos y seguro en un solo lugar.
+            </Text>
+          </View>
+        </View>
 
-      <ScrollView style={styles.content}>
-        {/* User Info */}
         <Card style={styles.userCard}>
           <View style={styles.userHeader}>
             <View style={styles.avatar}>
@@ -123,15 +128,26 @@ export function ProfileScreen() {
                 {userData?.displayName || 'Usuario'}
               </Text>
               <Text style={styles.userEmail}>{userData?.email}</Text>
+              <View style={styles.userTags}>
+                <View style={styles.tag}>
+                  <Icon name="person" size={14} color={theme.colors.white} />
+                  <Text style={styles.tagText}>Emergencia lista</Text>
+                </View>
+                <View style={[styles.tag, styles.tagAccent]}>
+                  <Icon name="calendar" size={14} color={theme.colors.white} />
+                  <Text style={styles.tagText}>Eventos activos</Text>
+                </View>
+              </View>
             </View>
           </View>
         </Card>
+      </View>
 
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {profile ? (
           <>
-            {/* Personal Information */}
             <Card style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>👤 Información Personal</Text>
+              <Text style={styles.sectionTitle}>Información Personal</Text>
               <View style={styles.infoGrid}>
                 <View style={styles.infoItem}>
                   <Text style={styles.infoLabel}>Nombre completo</Text>
@@ -162,7 +178,7 @@ export function ProfileScreen() {
                   </View>
                 )}
                 {!!profile.address && (
-                  <View>
+                  <View style={styles.infoItem}>
                     <Text style={styles.infoLabel}>Dirección</Text>
                     <Text style={styles.infoValue}>
                       {[
@@ -178,19 +194,25 @@ export function ProfileScreen() {
               </View>
             </Card>
 
-            {/* Emergency Contacts */}
             <Card style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>
-                📞 Contactos de Emergencia
-              </Text>
+              <Text style={styles.sectionTitle}>Contactos de Emergencia</Text>
               {profile.contacts.length > 0 ? (
                 profile.contacts.map((contact, index) => (
                   <View key={index} style={styles.contactItem}>
-                    <Text style={styles.contactName}>{contact.name}</Text>
-                    <Text style={styles.contactRelation}>
-                      {contact.relationship}
-                    </Text>
-                    <Text style={styles.contactPhone}>{contact.phone}</Text>
+                    <View style={styles.contactLeft}>
+                      <View style={styles.contactAvatar}>
+                        <Text style={styles.contactAvatarText}>
+                          {contact.name.charAt(0)}
+                        </Text>
+                      </View>
+                      <View style={styles.contactInfo}>
+                        <Text style={styles.contactName}>{contact.name}</Text>
+                        <Text style={styles.contactRelation}>
+                          {contact.relationship}
+                        </Text>
+                        <Text style={styles.contactPhone}>{contact.phone}</Text>
+                      </View>
+                    </View>
                     {contact.whatsapp && (
                       <TouchableOpacity
                         style={styles.whatsappBadge}
@@ -213,11 +235,8 @@ export function ProfileScreen() {
               )}
             </Card>
 
-            {/* Médico (detalles) */}
             <Card style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>
-                Información Médica (detalles)
-              </Text>
+              <Text style={styles.sectionTitle}>Información Médica</Text>
               <View style={styles.infoGrid}>
                 {profile.bloodType ? (
                   <View style={styles.infoItem}>
@@ -375,12 +394,8 @@ export function ProfileScreen() {
               </View>
             </Card>
 
-            {/* Vehículo */}
             <Card
-              style={StyleSheet.flatten([
-                styles.sectionCard,
-                styles.moreMarginBottom,
-              ])}
+              style={[styles.sectionCard, styles.moreMarginBottom]}
             >
               <Text style={styles.sectionTitle}>Vehículo</Text>
               {profile.bike ? (
@@ -404,7 +419,7 @@ export function ProfileScreen() {
                     </View>
                   )}
                   {!!profile.bike.insurance && (
-                    <View>
+                    <View style={styles.infoItem}>
                       <Text style={styles.infoLabel}>Seguro</Text>
                       <Text style={styles.infoValue}>
                         {[
@@ -428,19 +443,6 @@ export function ProfileScreen() {
                 </Text>
               )}
             </Card>
-
-            {/* Privacidad */}
-            {/* <Card style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Privacidad</Text>
-              <View style={styles.infoGrid}>
-                {Object.entries(profile.preferences || {}).map(([key, value]) => (
-                  <View key={key} style={styles.infoItem}>
-                    <Text style={styles.infoLabel}>{key}</Text>
-                    <Text style={styles.infoValue}>{value ? 'Visible' : 'Oculto'}</Text>
-                  </View>
-                ))}
-              </View>
-            </Card> */}
           </>
         ) : (
           <Card style={styles.emptyCard}>
@@ -461,52 +463,90 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.gray[50],
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: theme.colors.primary,
+  hero: {
     paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-    borderEndEndRadius: 20,
-    borderStartEndRadius: 20,
-    borderTopLeftRadius: 0,
-    borderBottomLeftRadius: 20,
-    borderTopEndRadius: 0,
+    paddingTop: theme.spacing.xl,
+    paddingBottom: theme.spacing.lg,
+    backgroundColor: theme.colors.primary,
   },
-  headerTitle: {
-    fontSize: theme.typography.h4.fontSize,
-    fontWeight: theme.typography.h4.fontWeight,
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: theme.spacing.md,
+    gap: theme.spacing.md,
+  },
+  heroKicker: {
     color: theme.colors.white,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: theme.colors.white,
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.xs,
+  },
+  heroSubtitle: {
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 15,
+    lineHeight: 22,
   },
   logoutButton: {
-    padding: theme.spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  logoutText: {
+    color: theme.colors.white,
+    fontWeight: '700',
   },
   content: {
     flex: 1,
     padding: theme.spacing.lg,
-    paddingBottom: theme.spacing.xl,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.xxl,
   },
   userCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: theme.colors.primary,
+    marginTop: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[100],
+    borderRadius: theme.borderRadius.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 6,
   },
   userHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: theme.spacing.md,
   },
   avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: theme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: theme.spacing.md,
   },
   avatarText: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: theme.colors.white,
   },
   userInfo: {
@@ -514,27 +554,48 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: theme.typography.h4.fontSize,
-    fontWeight: theme.typography.h4.fontWeight,
+    fontWeight: '800',
     color: theme.colors.text,
   },
   userEmail: {
     fontSize: theme.typography.caption.fontSize,
     color: theme.colors.textSecondary,
+    marginTop: 4,
   },
-  userSlug: {
-    fontSize: theme.typography.small.fontSize,
-    color: theme.colors.textSecondary,
-    fontFamily: 'monospace',
+  userTags: {
+    flexDirection: 'row',
+    gap: theme.spacing.xs,
+    marginTop: theme.spacing.sm,
+  },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.full,
+  },
+  tagAccent: {
+    backgroundColor: theme.colors.accent,
+  },
+  tagText: {
+    color: theme.colors.white,
+    fontWeight: '700',
+    fontSize: 12,
   },
   sectionCard: {
     marginBottom: theme.spacing.md,
+    borderRadius: theme.borderRadius.xl,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[100],
   },
   moreMarginBottom: {
     marginBottom: theme.spacing.xxl,
   },
   sectionTitle: {
     fontSize: theme.typography.h4.fontSize,
-    fontWeight: theme.typography.h4.fontWeight,
+    fontWeight: '800',
     color: theme.colors.text,
     marginBottom: theme.spacing.lg,
   },
@@ -550,6 +611,8 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.caption.fontSize,
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.xs,
+    textTransform: 'uppercase',
+    fontWeight: '700',
   },
   wrapinfoValue: {
     borderColor: theme.colors.primary,
@@ -581,10 +644,36 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: theme.colors.gray[50],
     padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
+    borderRadius: theme.borderRadius.lg,
     marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[200],
+  },
+  contactLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+    flex: 1,
+  },
+  contactAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  contactAvatarText: {
+    color: theme.colors.white,
+    fontWeight: '800',
+  },
+  contactInfo: {
+    flex: 1,
   },
   contactName: {
     fontSize: theme.typography.body.fontSize,
@@ -600,7 +689,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body.fontSize,
     color: theme.colors.primary,
     fontFamily: 'monospace',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   whatsappBadge: {
     flexDirection: 'row',
@@ -608,9 +697,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#25D366',
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
-    borderRadius: theme.borderRadius.sm,
+    borderRadius: theme.borderRadius.full,
     alignSelf: 'flex-start',
     marginTop: theme.spacing.xs,
+    borderWidth: 1,
+    borderColor: '#1DA653',
   },
   whatsappText: {
     color: theme.colors.white,

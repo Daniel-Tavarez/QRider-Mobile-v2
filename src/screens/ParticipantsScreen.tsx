@@ -116,7 +116,7 @@ export function ParticipantsScreen({ route, navigation }: ParticipantsScreenProp
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="arrow-back" size={24} color={theme.colors.white} />
+          <Icon name="arrow-back" size={22} color={theme.colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Participantes</Text>
         <View style={styles.headerRight} />
@@ -127,36 +127,64 @@ export function ParticipantsScreen({ route, navigation }: ParticipantsScreenProp
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        showsVerticalScrollIndicator={false}
       >
         {event && (
-          <Card style={styles.eventCard}>
+          <View style={styles.heroCard}>
             <Text style={styles.eventTitle}>{event.title}</Text>
             <Text style={styles.eventSubtitle}>
-              {participants.length} {participants.length === 1 ? 'participante' : 'participantes'}
+              {participants.length}{' '}
+              {participants.length === 1 ? 'participante' : 'participantes'}
             </Text>
-          </Card>
-        )}
-
-        <Card style={styles.statsCard}>
-          <Text style={styles.statsTitle}>Estadísticas</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Icon name="checkmark-circle" size={24} color={theme.colors.success} />
-              <Text style={styles.statNumber}>{goingCount}</Text>
-              <Text style={styles.statLabel}>Confirmados</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Icon name="help-circle" size={24} color={theme.colors.warning} />
-              <Text style={styles.statNumber}>{maybeCount}</Text>
-              <Text style={styles.statLabel}>Tal vez</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Icon name="close-circle" size={24} color={theme.colors.error} />
-              <Text style={styles.statNumber}>{notGoingCount}</Text>
-              <Text style={styles.statLabel}>No van</Text>
+            <View style={styles.chipRow}>
+              <View style={styles.chip}>
+                <Icon name="calendar" size={14} color={theme.colors.white} />
+                <Text style={styles.chipText}>Roster actualizado</Text>
+              </View>
+              {event.joinMode === 'public' ? (
+                <View style={[styles.chip, styles.chipAccent]}>
+                  <Icon name="globe" size={14} color={theme.colors.white} />
+                  <Text style={styles.chipText}>Evento público</Text>
+                </View>
+              ) : (
+                <View style={[styles.chip, styles.chipAccent]}>
+                  <Icon name="lock-closed" size={14} color={theme.colors.white} />
+                  <Text style={styles.chipText}>Con invitación</Text>
+                </View>
+              )}
             </View>
           </View>
-        </Card>
+        )}
+
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <View style={styles.statIcon}>
+              <Icon name="checkmark-circle" size={18} color={theme.colors.white} />
+            </View>
+            <View>
+              <Text style={styles.statLabel}>Confirmados</Text>
+              <Text style={styles.statValue}>{goingCount}</Text>
+            </View>
+          </View>
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, styles.statIconWarning]}>
+              <Icon name="help-circle" size={18} color={theme.colors.white} />
+            </View>
+            <View>
+              <Text style={styles.statLabel}>Tal vez</Text>
+              <Text style={styles.statValue}>{maybeCount}</Text>
+            </View>
+          </View>
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, styles.statIconError]}>
+              <Icon name="close-circle" size={18} color={theme.colors.white} />
+            </View>
+            <View>
+              <Text style={styles.statLabel}>No van</Text>
+              <Text style={styles.statValue}>{notGoingCount}</Text>
+            </View>
+          </View>
+        </View>
 
         <Card style={styles.participantsCard}>
           <Text style={styles.sectionTitle}>Lista de participantes</Text>
@@ -218,16 +246,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: theme.colors.primary,
     paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+    paddingTop: theme.spacing.lg,
+    paddingBottom: theme.spacing.sm,
+    backgroundColor: theme.colors.primary,
+    borderBottomWidth: 0,
   },
   backButton: {
     padding: theme.spacing.sm,
   },
   headerTitle: {
     fontSize: theme.typography.h4.fontSize,
-    fontWeight: theme.typography.h4.fontWeight,
+    fontWeight: '800',
     color: theme.colors.white,
   },
   headerRight: {
@@ -236,55 +266,101 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: theme.spacing.lg,
+    paddingTop: theme.spacing.sm,
   },
-  eventCard: {
+  heroCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.xl,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[100],
+    padding: theme.spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 6,
     marginBottom: theme.spacing.lg,
-    backgroundColor: theme.colors.primary,
   },
   eventTitle: {
     fontSize: theme.typography.h3.fontSize,
-    fontWeight: theme.typography.h3.fontWeight,
-    color: theme.colors.white,
+    fontWeight: '800',
+    color: theme.colors.text,
     marginBottom: theme.spacing.xs,
   },
   eventSubtitle: {
     fontSize: theme.typography.body.fontSize,
-    color: theme.colors.white,
-    opacity: 0.9,
+    color: theme.colors.textSecondary,
   },
-  statsCard: {
-    marginBottom: theme.spacing.lg,
-  },
-  statsTitle: {
-    fontSize: theme.typography.h4.fontSize,
-    fontWeight: theme.typography.h4.fontWeight,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.lg,
-  },
-  statsGrid: {
+  chipRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
   },
-  statItem: {
+  chip: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.xs,
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.full,
   },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: theme.colors.text,
+  chipAccent: {
+    backgroundColor: theme.colors.accent,
+  },
+  chipText: {
+    color: theme.colors.white,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[100],
+    padding: theme.spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  statIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.success,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statIconWarning: {
+    backgroundColor: theme.colors.warning,
+  },
+  statIconError: {
+    backgroundColor: theme.colors.error,
   },
   statLabel: {
-    fontSize: theme.typography.small.fontSize,
+    fontSize: 12,
     color: theme.colors.textSecondary,
-    textAlign: 'center',
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: theme.colors.text,
   },
   participantsCard: {
     marginBottom: theme.spacing.lg,
+    borderRadius: theme.borderRadius.xl,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[100],
   },
   sectionTitle: {
     fontSize: theme.typography.h4.fontSize,
-    fontWeight: theme.typography.h4.fontWeight,
+    fontWeight: '800',
     color: theme.colors.text,
     marginBottom: theme.spacing.sm,
   },

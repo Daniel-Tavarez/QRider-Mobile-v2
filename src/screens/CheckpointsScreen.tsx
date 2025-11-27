@@ -221,7 +221,7 @@ export function CheckpointsScreen({
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <Icon name="arrow-back" size={24} color={theme.colors.white} />
+          <Icon name="arrow-back" size={22} color={theme.colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Progreso de Ruta</Text>
         <View style={styles.headerRight} />
@@ -232,6 +232,7 @@ export function CheckpointsScreen({
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        showsVerticalScrollIndicator={false}
       >
         {isEventActive && (
           <View style={styles.activeBanner}>
@@ -246,6 +247,25 @@ export function CheckpointsScreen({
 
         {checkpoints.length > 0 ? (
           <>
+            <View style={styles.heroStats}>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>Completados</Text>
+                <Text style={styles.statValue}>{completedCount}</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>Pendientes</Text>
+                <Text style={styles.statValue}>
+                  {totalCount - completedCount}
+                </Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>Progreso</Text>
+                <Text style={styles.statValue}>
+                  {Math.round(progressPercentage)}%
+                </Text>
+              </View>
+            </View>
+
             <Card style={styles.summaryCard}>
               <Text style={styles.summaryTitle}>Progreso General</Text>
               <View style={styles.progressContainer}>
@@ -260,24 +280,6 @@ export function CheckpointsScreen({
                 <Text style={styles.progressText}>
                   {completedCount} de {totalCount} checkpoints completados
                 </Text>
-              </View>
-              <View style={styles.statsRow}>
-                <View style={styles.statBox}>
-                  <Text style={styles.statNumber}>{completedCount}</Text>
-                  <Text style={styles.statLabel}>Completados</Text>
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={styles.statNumber}>
-                    {totalCount - completedCount}
-                  </Text>
-                  <Text style={styles.statLabel}>Pendientes</Text>
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={styles.statNumber}>
-                    {Math.round(progressPercentage)}%
-                  </Text>
-                  <Text style={styles.statLabel}>Progreso</Text>
-                </View>
               </View>
             </Card>
 
@@ -446,28 +448,25 @@ export function CheckpointsScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.gray[50],
     paddingBottom: -theme.spacing.lg,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: theme.colors.primary,
     paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    paddingTop: theme.spacing.lg,
+    paddingBottom: theme.spacing.sm,
+    backgroundColor: theme.colors.primary,
+    borderBottomWidth: 0,
   },
   backButton: {
     padding: theme.spacing.sm,
   },
   headerTitle: {
     fontSize: theme.typography.h4.fontSize,
-    fontWeight: theme.typography.h4.fontWeight,
+    fontWeight: '800',
     color: theme.colors.white,
   },
   headerRight: {
@@ -476,16 +475,42 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: theme.spacing.lg,
+    paddingTop: theme.spacing.sm,
+  },
+  heroStats: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: theme.colors.white,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[100],
+  },
+  statLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  statValue: {
+    color: theme.colors.text,
+    fontWeight: '800',
+    fontSize: 22,
   },
   activeBanner: {
-    backgroundColor: theme.colors.success,
+    backgroundColor: theme.colors.gray[100],
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[200],
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
     marginBottom: theme.spacing.lg,
+    marginTop: theme.spacing.lg,
   },
   activeBannerContent: {
     flexDirection: 'row',
@@ -494,29 +519,29 @@ const styles = StyleSheet.create({
   },
   activeBannerText: {
     fontSize: theme.typography.caption.fontSize,
-    fontWeight: '600',
-    color: theme.colors.white,
+    fontWeight: '700',
+    color: theme.colors.text,
   },
   pulseDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: theme.colors.white,
+    backgroundColor: theme.colors.success,
   },
   summaryCard: {
     marginBottom: theme.spacing.lg,
-    backgroundColor: '#E8F5E9',
-    borderLeftWidth: 4,
-    borderLeftColor: theme.colors.success,
+    borderRadius: theme.borderRadius.xl,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[100],
   },
   summaryTitle: {
     fontSize: theme.typography.h4.fontSize,
-    fontWeight: theme.typography.h4.fontWeight,
+    fontWeight: '800',
     color: theme.colors.text,
     marginBottom: theme.spacing.lg,
   },
   progressContainer: {
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
   },
   progressBar: {
     height: 12,
@@ -536,32 +561,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
   },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: theme.spacing.md,
-  },
-  statBox: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: theme.colors.success,
-    marginBottom: theme.spacing.xs,
-  },
-  statLabel: {
-    fontSize: theme.typography.small.fontSize,
-    color: theme.colors.textSecondary,
-    textTransform: 'uppercase',
-    fontWeight: '600',
-  },
   checkpointsCard: {
     marginBottom: theme.spacing.xxl,
+    borderRadius: theme.borderRadius.xl,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[100],
   },
   sectionTitle: {
     fontSize: theme.typography.h4.fontSize,
-    fontWeight: theme.typography.h4.fontWeight,
+    fontWeight: '800',
     color: theme.colors.text,
     marginBottom: theme.spacing.lg,
   },

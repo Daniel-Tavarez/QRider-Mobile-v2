@@ -612,12 +612,12 @@ export function EventDetailScreen({
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+      <View style={styles.topBar}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <Icon name="arrow-back" size={24} color={theme.colors.white} />
+          <Icon name="arrow-back" size={22} color={theme.colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Detalle del Evento</Text>
         <View style={styles.headerRight} />
@@ -634,9 +634,59 @@ export function EventDetailScreen({
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
+        <View style={styles.heroCard}>
+          <View style={styles.heroCardHeader}>
+            <Text style={styles.eventName}>{event.title}</Text>
+            {event.createdBy === user?.uid && (
+              <View style={styles.adminChip}>
+                <Text style={styles.adminChipText}>Admin</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.heroMetaRow}>
+            <View style={styles.metaChip}>
+              <Icon name="calendar" size={16} color={theme.colors.white} />
+              <Text style={styles.metaChipText}>{formatDate(event.date)}</Text>
+              {event.startTime && (
+                <Text style={styles.metaChipSub}>· {event.startTime}</Text>
+              )}
+            </View>
+            {event.difficulty && (
+              <View
+                style={[
+                  styles.metaChip,
+                  { backgroundColor: getDifficultyColor(event.difficulty) },
+                ]}
+              >
+                <Icon name="alert-circle" size={16} color={theme.colors.white} />
+                <Text style={styles.metaChipText}>
+                  {getDifficultyText(event.difficulty)}
+                </Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.heroStats}>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Confirmados</Text>
+              <Text style={styles.statValue}>{goingCount}</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statLabel}>Tal vez</Text>
+              <Text style={styles.statValue}>{maybeCount}</Text>
+            </View>
+            {event.capacity && (
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>Capacidad</Text>
+                <Text style={styles.statValue}>{event.capacity}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
         <Card style={styles.eventCard}>
-          <Text style={styles.sectionTitle}>{event.title}</Text>
+          <Text style={styles.sectionTitle}>Plan y ruta</Text>
 
           <View style={styles.detailsGrid}>
             <View style={styles.detailItem}>
@@ -1106,27 +1156,24 @@ export function EventDetailScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.gray[50],
   },
-  header: {
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.lg,
+    paddingBottom: theme.spacing.sm,
     backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    borderBottomWidth: 0,
   },
   backButton: {
     padding: theme.spacing.sm,
   },
   headerTitle: {
     fontSize: theme.typography.h4.fontSize,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: theme.colors.white,
     letterSpacing: 0.5,
   },
@@ -1136,6 +1183,90 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: theme.spacing.lg,
+    paddingTop: theme.spacing.sm,
+  },
+  heroCard: {
+    backgroundColor: theme.colors.white,
+    padding: theme.spacing.lg,
+    borderRadius: theme.borderRadius.xl,
+    marginBottom: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[100],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  heroCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
+  },
+  eventName: {
+    flex: 1,
+    fontSize: 24,
+    fontWeight: '800',
+    color: theme.colors.text,
+  },
+  adminChip: {
+    backgroundColor: theme.colors.secondary,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 8,
+    borderRadius: theme.borderRadius.full,
+  },
+  adminChipText: {
+    color: theme.colors.white,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  heroMetaRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+  },
+  metaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: 8,
+    borderRadius: theme.borderRadius.full,
+  },
+  metaChipText: {
+    color: theme.colors.white,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  metaChipSub: {
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  heroStats: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.lg,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: theme.colors.gray[50],
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[200],
+  },
+  statLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    marginBottom: theme.spacing.xs,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: theme.colors.text,
   },
   errorContainer: {
     flex: 1,
@@ -1153,10 +1284,13 @@ const styles = StyleSheet.create({
   },
   eventCard: {
     marginBottom: theme.spacing.lg,
+    borderRadius: theme.borderRadius.xl,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[100],
   },
   sectionTitle: {
     fontSize: theme.typography.h4.fontSize,
-    fontWeight: theme.typography.h4.fontWeight,
+    fontWeight: '800',
     color: theme.colors.text,
     marginBottom: theme.spacing.md,
   },
