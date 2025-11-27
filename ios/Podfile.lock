@@ -3826,14 +3826,14 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - RNFBApp (23.5.0):
+  - RNFBApp (23.4.1):
     - Firebase/CoreOnly (= 12.4.0)
     - React-Core
-  - RNFBAuth (23.5.0):
+  - RNFBAuth (23.4.1):
     - Firebase/Auth (= 12.4.0)
     - React-Core
     - RNFBApp
-  - RNFBFirestore (23.5.0):
+  - RNFBFirestore (23.4.1):
     - Firebase/Firestore (= 12.4.0)
     - React-Core
     - RNFBApp
@@ -4402,9 +4402,9 @@ SPEC CHECKSUMS:
   ReactCommon: 801eff8cb9c940c04d3a89ce399c343ee3eff654
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
   RNCAsyncStorage: 87d51a3aa982dd38d07ecb588aa67821a4a14eee
-  RNFBApp: 255fa19a91d6c1309e021ee75d5d209754e5961b
-  RNFBAuth: 7123a71a1fc8dec4aa4e6cb656562661b3ece9f7
-  RNFBFirestore: 82bca32eb782c08c54a21eadce88d5cf676afd9e
+  RNFBApp: d1f587866b6e188d95c5f541abedd8e4ce167bbe
+  RNFBAuth: b27ebeb2e99adaa2538b0660619381d0a3d3e72c
+  RNFBFirestore: ecb7eb55606d2bf4be530f52a5fa280613919277
   RNGestureHandler: 332c71177cd5c856673c7e7875fa3f92ba5a5cc2
   RNGoogleSignin: 85c82d6e1494bd4a039804959362e63771f7ad5a
   RNScreens: 98771ad898d1c0528fc8139606bbacf5a2e9d237
