@@ -128,16 +128,6 @@ export function ProfileScreen() {
                 {userData?.displayName || 'Usuario'}
               </Text>
               <Text style={styles.userEmail}>{userData?.email}</Text>
-              <View style={styles.userTags}>
-                <View style={styles.tag}>
-                  <Icon name="person" size={14} color={theme.colors.white} />
-                  <Text style={styles.tagText}>Emergencia</Text>
-                </View>
-                <View style={[styles.tag, styles.tagAccent]}>
-                  <Icon name="calendar" size={14} color={theme.colors.white} />
-                  <Text style={styles.tagText}>Eventos activos</Text>
-                </View>
-              </View>
             </View>
           </View>
         </Card>
@@ -561,28 +551,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.caption.fontSize,
     color: theme.colors.textSecondary,
     marginTop: 4,
-  },
-  userTags: {
-    flexDirection: 'row',
-    gap: theme.spacing.xs,
-    marginTop: theme.spacing.sm,
-  },
-  tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.xs,
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.borderRadius.full,
-  },
-  tagAccent: {
-    backgroundColor: theme.colors.accent,
-  },
-  tagText: {
-    color: theme.colors.white,
-    fontWeight: '700',
-    fontSize: theme.typography.caption.fontSize,
   },
   sectionCard: {
     marginBottom: theme.spacing.md,

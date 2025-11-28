@@ -190,9 +190,9 @@ export function ParticipantsScreen({ route, navigation }: ParticipantsScreenProp
                     <Text style={styles.participantName}>
                       {participant.profile?.fullName || 'Usuario'}
                     </Text>
-                    {participant.profile?.primaryPhone && (
+                    {participant.profile?.bike?.brand && (
                       <Text style={styles.participantPhone}>
-                        {participant.profile.primaryPhone}
+                        {participant.profile?.bike?.brand ?? 'N/A'} - {participant.profile?.bike?.model ?? 'N/A'}
                       </Text>
                     )}
                   </View>
@@ -311,11 +311,11 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     flexDirection: 'column',
     alignItems: 'center',
-    gap: theme.spacing.sm,
   },
   statLabel: {
-    fontSize: theme.typography.caption.fontSize,
+    fontSize: theme.typography.small.fontSize,
     color: theme.colors.textSecondary,
+    fontWeight: '600',
   },
   statValue: {
     fontSize: 18,

@@ -1213,18 +1213,19 @@ const styles = StyleSheet.create({
   },
   adminChip: {
     backgroundColor: theme.colors.secondary,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 8,
+    paddingHorizontal: theme.spacing.sm + 1,
+    paddingVertical: 5,
     borderRadius: theme.borderRadius.full,
   },
   adminChipText: {
     color: theme.colors.white,
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: theme.typography.small.fontSize,
   },
   heroMetaRow: {
     flexDirection: 'row',
     gap: theme.spacing.sm,
+    justifyContent: 'space-between',
     marginTop: theme.spacing.md,
   },
   metaChip: {
@@ -1239,12 +1240,12 @@ const styles = StyleSheet.create({
   metaChipText: {
     color: theme.colors.white,
     fontWeight: '700',
-    fontSize: theme.typography.caption.fontSize,
+    fontSize: theme.typography.small.fontSize,
   },
   metaChipSub: {
     color: 'rgba(255,255,255,0.85)',
     fontWeight: '600',
-    fontSize: theme.typography.caption.fontSize,
+    fontSize: theme.typography.small.fontSize,
   },
   heroStats: {
     flexDirection: 'row',

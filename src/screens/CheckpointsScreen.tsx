@@ -491,8 +491,9 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     color: theme.colors.textSecondary,
-    fontSize: theme.typography.caption.fontSize,
+    fontSize: theme.typography.small.fontSize,
     marginBottom: 4,
+    fontWeight: '600',
   },
   statValue: {
     color: theme.colors.text,

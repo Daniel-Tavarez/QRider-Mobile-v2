@@ -132,13 +132,13 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
           <View>
             <View style={styles.topRow}>
 
-            <Text style={styles.heroKicker}>Próximas rutas</Text>
-          <View style={styles.heroBadge}>
-            <Icon name="calendar" size={20} color={theme.colors.primary} />
-            <Text style={styles.heroBadgeText}>
-              {upcomingEvents.length} activos
-            </Text>
-          </View>
+              <Text style={styles.heroKicker}>Próximas rutas</Text>
+              <View style={styles.heroBadge}>
+                <Icon name="calendar" size={20} color={theme.colors.primary} />
+                <Text style={styles.heroBadgeText}>
+                  {upcomingEvents.length} activos
+                </Text>
+              </View>
             </View>
             <Text style={styles.heroTitle}>Eventos & checkpoints</Text>
             <Text style={styles.heroSubtitle}>
@@ -229,11 +229,6 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
                         </View>
                       )}
                     </View>
-                    {event.createdBy === user?.uid && (
-                      <View style={styles.adminChip}>
-                        <Text style={styles.adminChipText}>Admin</Text>
-                      </View>
-                    )}
                   </View>
 
                   <Text style={styles.eventTitle}>{event.title}</Text>
@@ -269,6 +264,11 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
                       </View>
                       {isPast && (
                         <Text style={styles.pastText}>Finalizado</Text>
+                      )}
+                      {event.createdBy === user?.uid && (
+                        <View style={styles.adminChip}>
+                          <Text style={styles.adminChipText}>Admin</Text>
+                        </View>
                       )}
                     </View>
                     <Icon
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.gray[50],
   },
   eventCard: {
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
     borderWidth: 1,
     borderColor: theme.colors.gray[100],
     backgroundColor: theme.colors.white,
@@ -433,12 +433,12 @@ const styles = StyleSheet.create({
   chipText: {
     color: theme.colors.white,
     fontWeight: '700',
-    fontSize: theme.typography.caption.fontSize,
+    fontSize: theme.typography.small.fontSize,
   },
   chipTextMuted: {
     color: 'rgba(255,255,255,0.85)',
     fontWeight: '600',
-    fontSize: 12,
+    fontSize: theme.typography.small.fontSize,
   },
   difficultyPill: {
     borderRadius: theme.borderRadius.full,
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
   difficultyPillText: {
     color: theme.colors.white,
     fontWeight: '700',
-    fontSize: theme.typography.caption.fontSize,
+    fontSize: theme.typography.small.fontSize,
   },
   adminChip: {
     backgroundColor: theme.colors.secondary,

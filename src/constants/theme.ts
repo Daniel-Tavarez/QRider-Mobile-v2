@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-const fontScale = Platform.OS === 'ios' ? 0.82 : 1;
+const fontScale = Platform.OS === 'ios' ? 0.82 : 0.92;
 
 export const scaleFont = (size: number) => Math.round(size * fontScale);
 
