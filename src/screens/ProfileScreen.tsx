@@ -98,7 +98,7 @@ export function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
+    <SafeAreaView edges={['left', 'right']} style={styles.container}>
       <View style={styles.hero}>
         <View style={styles.heroTopRow}>
           <View>
@@ -131,7 +131,7 @@ export function ProfileScreen() {
               <View style={styles.userTags}>
                 <View style={styles.tag}>
                   <Icon name="person" size={14} color={theme.colors.white} />
-                  <Text style={styles.tagText}>Emergencia lista</Text>
+                  <Text style={styles.tagText}>Emergencia</Text>
                 </View>
                 <View style={[styles.tag, styles.tagAccent]}>
                   <Icon name="calendar" size={14} color={theme.colors.white} />
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
   },
   hero: {
     paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.xl,
+    paddingTop: theme.spacing.xxl + 20,
     paddingBottom: theme.spacing.lg,
     backgroundColor: theme.colors.primary,
   },
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: theme.typography.h1.fontSize,
     fontWeight: '800',
     color: theme.colors.white,
     marginTop: theme.spacing.xs,
@@ -496,8 +496,8 @@ const styles = StyleSheet.create({
   },
   heroSubtitle: {
     color: 'rgba(255,255,255,0.88)',
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: theme.typography.body.fontSize,
+    lineHeight: 16,
   },
   logoutButton: {
     flexDirection: 'row',
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xxl,
   },
   userCard: {
-    marginTop: theme.spacing.md,
+    marginTop: theme.spacing.sm,
     borderWidth: 1,
     borderColor: theme.colors.gray[100],
     borderRadius: theme.borderRadius.xl,
@@ -582,7 +582,7 @@ const styles = StyleSheet.create({
   tagText: {
     color: theme.colors.white,
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: theme.typography.caption.fontSize,
   },
   sectionCard: {
     marginBottom: theme.spacing.md,

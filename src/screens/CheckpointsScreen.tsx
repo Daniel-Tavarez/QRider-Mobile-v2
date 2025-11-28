@@ -310,14 +310,11 @@ export function CheckpointsScreen({
                               color={theme.colors.success}
                             />
                           ) : (
-                            <Text
-                              style={[
-                                styles.stepNumber,
-                                isCompleted && styles.stepNumberCompleted,
-                              ]}
-                            >
-                              {checkpoint.sequence + 1}
-                            </Text>
+                            <Icon
+                              name="checkmark-circle"
+                              size={32}
+                              color={theme.colors.gray[200]}
+                            />
                           )}
                         </View>
                         {!isLast && (
@@ -484,6 +481,8 @@ const styles = StyleSheet.create({
   },
   statBox: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: theme.colors.white,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
@@ -492,7 +491,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     color: theme.colors.textSecondary,
-    fontSize: 12,
+    fontSize: theme.typography.caption.fontSize,
     marginBottom: 4,
   },
   statValue: {

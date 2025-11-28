@@ -1,4 +1,58 @@
+import { Platform } from 'react-native';
+
+const fontScale = Platform.OS === 'ios' ? 0.82 : 1;
+
+export const scaleFont = (size: number) => Math.round(size * fontScale);
+
+const scaleTypography = <T extends { fontSize: number; lineHeight: number; fontWeight: string }>(
+  variant: T,
+) =>
+  ({
+    ...variant,
+    fontSize: scaleFont(variant.fontSize),
+    lineHeight: scaleFont(variant.lineHeight),
+  } as T);
+
+const typographyBase = {
+  h1: {
+    fontSize: 32,
+    fontWeight: 'bold' as const,
+    lineHeight: 40,
+  },
+  h2: {
+    fontSize: 28,
+    fontWeight: 'bold' as const,
+    lineHeight: 36,
+  },
+  h3: {
+    fontSize: 24,
+    fontWeight: '600' as const,
+    lineHeight: 32,
+  },
+  h4: {
+    fontSize: 20,
+    fontWeight: '600' as const,
+    lineHeight: 28,
+  },
+  body: {
+    fontSize: 16,
+    fontWeight: 'normal' as const,
+    lineHeight: 24,
+  },
+  caption: {
+    fontSize: 14,
+    fontWeight: 'normal' as const,
+    lineHeight: 20,
+  },
+  small: {
+    fontSize: 12,
+    fontWeight: 'normal' as const,
+    lineHeight: 16,
+  },
+};
+
 export const theme = {
+  fontScale,
   colors: {
     primary: '#D32F2F',
     primaryLight: '#FF5F52',
@@ -54,41 +108,13 @@ export const theme = {
     full: 50,
   },
   typography: {
-    h1: {
-      fontSize: 32,
-      fontWeight: 'bold' as const,
-      lineHeight: 40,
-    },
-    h2: {
-      fontSize: 28,
-      fontWeight: 'bold' as const,
-      lineHeight: 36,
-    },
-    h3: {
-      fontSize: 24,
-      fontWeight: '600' as const,
-      lineHeight: 32,
-    },
-    h4: {
-      fontSize: 20,
-      fontWeight: '600' as const,
-      lineHeight: 28,
-    },
-    body: {
-      fontSize: 16,
-      fontWeight: 'normal' as const,
-      lineHeight: 24,
-    },
-    caption: {
-      fontSize: 14,
-      fontWeight: 'normal' as const,
-      lineHeight: 20,
-    },
-    small: {
-      fontSize: 12,
-      fontWeight: 'normal' as const,
-      lineHeight: 16,
-    },
+    h1: scaleTypography(typographyBase.h1),
+    h2: scaleTypography(typographyBase.h2),
+    h3: scaleTypography(typographyBase.h3),
+    h4: scaleTypography(typographyBase.h4),
+    body: scaleTypography(typographyBase.body),
+    caption: scaleTypography(typographyBase.caption),
+    small: scaleTypography(typographyBase.small),
   },
 };
 

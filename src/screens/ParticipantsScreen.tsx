@@ -39,7 +39,7 @@ export function ParticipantsScreen({ route, navigation }: ParticipantsScreenProp
         .collection('events')
         .doc(eventId)
         .get();
-      
+
       if (eventDoc.exists()) {
         setEvent({ id: eventDoc.id, ...eventDoc.data() } as Event);
       }
@@ -158,39 +158,21 @@ export function ParticipantsScreen({ route, navigation }: ParticipantsScreenProp
 
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <View style={styles.statIcon}>
-              <Icon name="checkmark-circle" size={18} color={theme.colors.white} />
-            </View>
-            <View>
-              <Text style={styles.statLabel}>Confirmados</Text>
-              <Text style={styles.statValue}>{goingCount}</Text>
-            </View>
+            <Text style={styles.statLabel}>Confirmados</Text>
+            <Text style={styles.statValue}>{goingCount}</Text>
           </View>
           <View style={styles.statCard}>
-            <View style={[styles.statIcon, styles.statIconWarning]}>
-              <Icon name="help-circle" size={18} color={theme.colors.white} />
-            </View>
-            <View>
-              <Text style={styles.statLabel}>Tal vez</Text>
-              <Text style={styles.statValue}>{maybeCount}</Text>
-            </View>
+            <Text style={styles.statLabel}>Tal vez</Text>
+            <Text style={styles.statValue}>{maybeCount}</Text>
           </View>
           <View style={styles.statCard}>
-            <View style={[styles.statIcon, styles.statIconError]}>
-              <Icon name="close-circle" size={18} color={theme.colors.white} />
-            </View>
-            <View>
-              <Text style={styles.statLabel}>No van</Text>
-              <Text style={styles.statValue}>{notGoingCount}</Text>
-            </View>
+            <Text style={styles.statLabel}>No van</Text>
+            <Text style={styles.statValue}>{notGoingCount}</Text>
           </View>
         </View>
 
         <Card style={styles.participantsCard}>
           <Text style={styles.sectionTitle}>Lista de participantes</Text>
-          <Text style={styles.sectionSubtitle}>
-            Ve quién más va al evento y accede a sus perfiles públicos.
-          </Text>
 
           {participants.length > 0 ? (
             participants.map((participant, index) => (
@@ -280,6 +262,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 6,
     marginBottom: theme.spacing.lg,
+    marginTop: theme.spacing.lg,
   },
   eventTitle: {
     fontSize: theme.typography.h3.fontSize,
@@ -320,31 +303,18 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
+    justifyContent: 'center',
     backgroundColor: theme.colors.white,
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
     borderColor: theme.colors.gray[100],
     padding: theme.spacing.md,
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
-    gap: theme.spacing.md,
-  },
-  statIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: theme.colors.success,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statIconWarning: {
-    backgroundColor: theme.colors.warning,
-  },
-  statIconError: {
-    backgroundColor: theme.colors.error,
+    gap: theme.spacing.sm,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: theme.typography.caption.fontSize,
     color: theme.colors.textSecondary,
   },
   statValue: {
@@ -363,11 +333,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: theme.colors.text,
     marginBottom: theme.spacing.sm,
-  },
-  sectionSubtitle: {
-    fontSize: theme.typography.body.fontSize,
-    color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.lg,
   },
   participantItem: {
     flexDirection: 'row',

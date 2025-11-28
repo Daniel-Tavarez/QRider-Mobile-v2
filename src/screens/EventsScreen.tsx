@@ -130,16 +130,19 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
       <View style={styles.hero}>
         <View style={styles.heroHeader}>
           <View>
+            <View style={styles.topRow}>
+
             <Text style={styles.heroKicker}>Próximas rutas</Text>
-            <Text style={styles.heroTitle}>Eventos & checkpoints</Text>
-            <Text style={styles.heroSubtitle}>
-              Consulta los rides activos, confirma asistencia y revisa notas antes de salir.
-            </Text>
-          </View>
           <View style={styles.heroBadge}>
             <Icon name="calendar" size={20} color={theme.colors.primary} />
             <Text style={styles.heroBadgeText}>
               {upcomingEvents.length} activos
+            </Text>
+          </View>
+            </View>
+            <Text style={styles.heroTitle}>Eventos & checkpoints</Text>
+            <Text style={styles.heroSubtitle}>
+              Consulta los rides activos, confirma asistencia y revisa notas antes de salir.
             </Text>
           </View>
         </View>
@@ -154,7 +157,7 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
             <Text style={styles.metricValueMuted}>{pastEvents.length}</Text>
           </View>
           <View style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Asistentes</Text>
+            <Text style={styles.metricLabel}>Asistidos</Text>
             <Text style={styles.metricValue}>
               {events.reduce(
                 (acc, ev) => acc + (participantCounts[ev.id] || 0),
@@ -307,6 +310,11 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.md,
     backgroundColor: theme.colors.primary,
   },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
   heroHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -321,19 +329,19 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xs,
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: theme.typography.h2.fontSize,
     fontWeight: '800',
     color: theme.colors.white,
     marginBottom: theme.spacing.xs,
   },
   heroSubtitle: {
     color: 'rgba(255,255,255,0.85)',
-    fontSize: 15,
+    fontSize: theme.typography.body.fontSize,
     lineHeight: 22,
   },
   heroBadge: {
     backgroundColor: 'rgba(255,255,255,0.16)',
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.full,
     borderWidth: 1,
@@ -345,6 +353,7 @@ const styles = StyleSheet.create({
   heroBadgeText: {
     color: theme.colors.white,
     fontWeight: '700',
+    fontSize: theme.typography.caption.fontSize,
   },
   metricsRow: {
     flexDirection: 'row',
@@ -355,24 +364,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.white,
     borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.sm,
     borderWidth: 1,
     borderColor: theme.colors.gray[100],
   },
   metricLabel: {
     color: theme.colors.textSecondary,
-    fontSize: 13,
+    fontSize: theme.typography.small.fontSize,
     marginBottom: theme.spacing.xs,
   },
   metricValue: {
     color: theme.colors.text,
     fontWeight: '800',
-    fontSize: 22,
+    fontSize: theme.typography.h3.fontSize,
   },
   metricValueMuted: {
     color: theme.colors.text,
     fontWeight: '800',
-    fontSize: 22,
+    fontSize: theme.typography.h3.fontSize,
   },
   content: {
     flex: 1,
@@ -422,7 +433,7 @@ const styles = StyleSheet.create({
   chipText: {
     color: theme.colors.white,
     fontWeight: '700',
-    fontSize: 13,
+    fontSize: theme.typography.caption.fontSize,
   },
   chipTextMuted: {
     color: 'rgba(255,255,255,0.85)',
@@ -437,7 +448,7 @@ const styles = StyleSheet.create({
   difficultyPillText: {
     color: theme.colors.white,
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: theme.typography.caption.fontSize,
   },
   adminChip: {
     backgroundColor: theme.colors.secondary,
@@ -451,7 +462,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   eventTitle: {
-    fontSize: 22,
+    fontSize: theme.typography.h3.fontSize,
     fontWeight: '800',
     color: theme.colors.text,
     marginBottom: theme.spacing.sm,
