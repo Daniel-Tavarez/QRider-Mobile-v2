@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../components/common/Button';
 import { Card } from '../components/common/Card';
@@ -37,6 +38,7 @@ type EventDetailScreenProps = NativeStackScreenProps<
 >;
 
 const ACTIVE_EVENT_KEY = 'active_event_id';
+const eventCacheKeyFor = (eventId: string) => `event_cache_${eventId}`;
 
 export function EventDetailScreen({
   route,
@@ -44,6 +46,7 @@ export function EventDetailScreen({
 }: EventDetailScreenProps) {
   const { eventId } = route.params;
   const { user } = useAuth();
+
   const [event, setEvent] = useState<Event | null>(null);
   const [registration, setRegistration] = useState<EventRegistration | null>(
     null,
@@ -55,6 +58,7 @@ export function EventDetailScreen({
   const [inviteCode, setInviteCode] = useState('');
   const [showInviteInput, setShowInviteInput] = useState(false);
   const [isEventActive, setIsEventActive] = useState(false);
+  const [onlineOutside, setOnlineOutside] = useState(false);
   const [routes, setRoutes] = useState<RouteDoc[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [selectedRouteName, setSelectedRouteName] = useState<string | null>(
@@ -148,6 +152,56 @@ export function EventDetailScreen({
 
   const loadEventData = async () => {
     if (!user) return;
+    const cacheKey = eventCacheKeyFor(eventId);
+    let fetchedRegistration: EventRegistration | null = null;
+    const applyCachedData = async () => {
+      try {
+        const cached = await AsyncStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed?.event) setEvent(parsed.event as Event);
+          if (parsed?.registration) {
+            const reg = parsed.registration as EventRegistration;
+            setRegistration(reg);
+            if (reg.routeId) {
+              setSelectedRouteId(reg.routeId);
+              const found = (parsed.routes as RouteDoc[] | undefined)?.find(
+                r => r.id === reg.routeId,
+              );
+              if (found?.name) setSelectedRouteName(found.name);
+            }
+          }
+          if (parsed?.routes) setRoutes(parsed.routes as RouteDoc[]);
+          return true;
+        }
+      } catch (cacheError) {
+        console.error('Error loading cached event data:', cacheError);
+      }
+      return false;
+    };
+
+    try {
+      const state = await NetInfo.fetch();
+
+      const isOnline =
+        state.isConnected === true && state.isInternetReachable === true;
+      setOnlineOutside(isOnline);
+
+      if (!isOnline) {
+        const loadedFromCache = await applyCachedData();
+        if (!loadedFromCache) {
+          Alert.alert(
+            'Sin conexión',
+            'No hay conexión y no se encontró información guardada de este evento.',
+          );
+        }
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+    } catch (error) {
+      console.warn('Error checking connectivity:', error);
+    }
 
     try {
       const eventDoc = await firestore()
@@ -173,13 +227,14 @@ export function EventDetailScreen({
       if (!registrationSnap.empty) {
         const reg = registrationSnap.docs[0].data() as EventRegistration;
         setRegistration(reg);
+        fetchedRegistration = reg;
         if (reg?.routeId) {
           setSelectedRouteId(reg.routeId);
           // Fetch route name directly by id to ensure display even if list not yet loaded
           try {
             const rt = await getRouteById(reg.routeId);
             if (rt?.name) setSelectedRouteName(rt.name);
-          } catch {}
+          } catch { }
         }
       }
 
@@ -193,6 +248,7 @@ export function EventDetailScreen({
       );
 
       // Load available routes if event supports multiple routes
+      let routesList: RouteDoc[] = [];
       if (eventData.multipleRoutes) {
         try {
           const routesSnap = await firestore()
@@ -203,6 +259,7 @@ export function EventDetailScreen({
             id: d.id,
             ...(d.data() as any),
           }));
+          routesList = list;
           setRoutes(list);
           // If we have a selectedRouteId, ensure we have its name
           if (selectedRouteId && !selectedRouteName) {
@@ -215,9 +272,30 @@ export function EventDetailScreen({
       } else {
         setRoutes([]);
       }
+
+      // Cache minimal event data for offline access
+      try {
+        await AsyncStorage.setItem(
+          cacheKey,
+          JSON.stringify({
+            event: eventData,
+            registration: fetchedRegistration,
+            routes: routesList,
+          }),
+        );
+      } catch (cacheError) {
+        console.warn('No se pudo cachear el evento:', cacheError);
+      }
     } catch (error) {
       console.error('Error loading event data:', error);
-      Alert.alert('Error', 'No se pudo cargar la información del evento');
+      // Offline / error fallback: use cached event data if available
+      const loadedFromCache = await applyCachedData();
+      if (!loadedFromCache) {
+        Alert.alert(
+          'Error',
+          'No se pudo cargar la información del evento. Verifica tu conexión.',
+        );
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -537,7 +615,7 @@ export function EventDetailScreen({
             try {
               const snapshotKey = `emergency_snapshot_${eventId}_${user.uid}`;
               await AsyncStorage.removeItem(snapshotKey);
-            } catch {}
+            } catch { }
             // If this event is active, stop geofencing and clear active keys
             try {
               const activeEventId = await AsyncStorage.getItem(
@@ -547,7 +625,7 @@ export function EventDetailScreen({
                 await stopGeofencing();
                 await AsyncStorage.removeItem(ACTIVE_EVENT_KEY);
               }
-            } catch {}
+            } catch { }
             setRegistration(null);
             await loadEventData();
             Alert.alert('Listo', 'Has salido del evento');
@@ -625,7 +703,7 @@ export function EventDetailScreen({
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1}}
+        style={{ flex: 1 }}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <ScrollView
@@ -636,517 +714,518 @@ export function EventDetailScreen({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-        <View style={styles.heroCard}>
-          <View style={styles.heroCardHeader}>
-            <Text style={styles.eventName}>{event.title}</Text>
-            {event.createdBy === user?.uid && (
-              <View style={styles.adminChip}>
-                <Text style={styles.adminChipText}>Admin</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.heroMetaRow}>
-            <View style={styles.metaChip}>
-              <Icon name="calendar" size={16} color={theme.colors.white} />
-              <Text style={styles.metaChipText}>{formatDate(event.date)}</Text>
-              {event.startTime && (
-                <Text style={styles.metaChipSub}>· {event.startTime}</Text>
+          <View style={styles.heroCard}>
+            <View style={styles.heroCardHeader}>
+              <Text style={styles.eventName}>{event.title}</Text>
+              {event.createdBy === user?.uid && (
+                <View style={styles.adminChip}>
+                  <Text style={styles.adminChipText}>Admin</Text>
+                </View>
               )}
             </View>
-            {event.difficulty && (
-              <View
-                style={[
-                  styles.metaChip,
-                  { backgroundColor: getDifficultyColor(event.difficulty) },
-                ]}
-              >
-                <Icon name="alert-circle" size={16} color={theme.colors.white} />
-                <Text style={styles.metaChipText}>
-                  {getDifficultyText(event.difficulty)}
-                </Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.heroStats}>
-            <View style={styles.statBox}>
-              <Text style={styles.statLabel}>Confirmados</Text>
-              <Text style={styles.statValue}>{goingCount}</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statLabel}>Tal vez</Text>
-              <Text style={styles.statValue}>{maybeCount}</Text>
-            </View>
-            {event.capacity && (
-              <View style={styles.statBox}>
-                <Text style={styles.statLabel}>Capacidad</Text>
-                <Text style={styles.statValue}>{event.capacity}</Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        <Card style={styles.eventCard}>
-          <Text style={styles.sectionTitle}>Plan y ruta</Text>
-
-          <View style={styles.detailsGrid}>
-            <View style={styles.detailItem}>
-              <Icon
-                name="calendar"
-                size={20}
-                color={theme.colors.textSecondary}
-              />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Fecha</Text>
-                <Text style={styles.detailValue}>{formatDate(event.date)}</Text>
+            <View style={styles.heroMetaRow}>
+              <View style={styles.metaChip}>
+                <Icon name="calendar" size={16} color={theme.colors.white} />
+                <Text style={styles.metaChipText}>{formatDate(event.date)}</Text>
                 {event.startTime && (
-                  <Text style={styles.detailSubValue}>
-                    Hora: {event.startTime}
-                  </Text>
+                  <Text style={styles.metaChipSub}>· {event.startTime}</Text>
                 )}
               </View>
-            </View>
-
-            {event.meetingPoint?.text && (
-              <View style={styles.detailItem}>
-                <Icon
-                  name="location"
-                  size={20}
-                  color={theme.colors.textSecondary}
-                />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Punto de encuentro</Text>
-                  <Text style={styles.detailValue}>
-                    {event.meetingPoint.text}
-                  </Text>
-                  {event.meetingPoint.mapUrl && (
-                    <TouchableOpacity
-                      onPress={() => openLink(event.meetingPoint!.mapUrl!)}
-                      style={styles.linkButton}
-                    >
-                      <Icon
-                        name="location"
-                        size={20}
-                        color={theme.colors.primary}
-                      />
-                      <Text style={styles.linkText}>
-                        Ir al punto de encuentro
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                  {event.meetingPoint.routeUrl && (
-                    <TouchableOpacity
-                      onPress={() => openLink(event.meetingPoint!.routeUrl!)}
-                      style={styles.linkButton}
-                    >
-                      <Icon
-                        name="location"
-                        size={20}
-                        color={theme.colors.primary}
-                      />
-                      <Text style={styles.linkText}>Ver ruta</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            )}
-
-            {event.capacity && (
-              <View style={styles.detailItem}>
-                <Icon
-                  name="people"
-                  size={20}
-                  color={theme.colors.textSecondary}
-                />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Capacidad</Text>
-                  <Text style={styles.detailValue}>
-                    Máximo {event.capacity} participantes
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {event.difficulty && (
-              <View style={styles.detailItem}>
-                <Icon
-                  name="alert-circle"
-                  size={20}
-                  color={getDifficultyColor(event.difficulty)}
-                />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Dificultad</Text>
-                  <Text style={styles.detailValue}>
+              {event.difficulty && (
+                <View
+                  style={[
+                    styles.metaChip,
+                    { backgroundColor: getDifficultyColor(event.difficulty) },
+                  ]}
+                >
+                  <Icon name="alert-circle" size={16} color={theme.colors.white} />
+                  <Text style={styles.metaChipText}>
                     {getDifficultyText(event.difficulty)}
                   </Text>
                 </View>
+              )}
+            </View>
+            <View style={styles.heroStats}>
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>Confirmados</Text>
+                <Text style={styles.statValue}>{goingCount}</Text>
               </View>
-            )}
+              <View style={styles.statBox}>
+                <Text style={styles.statLabel}>Tal vez</Text>
+                <Text style={styles.statValue}>{maybeCount}</Text>
+              </View>
+              {event.capacity && (
+                <View style={styles.statBox}>
+                  <Text style={styles.statLabel}>Capacidad</Text>
+                  <Text style={styles.statValue}>{event.capacity}</Text>
+                </View>
+              )}
+            </View>
+          </View>
 
-            {event.window && (
+          <Card style={styles.eventCard}>
+            <Text style={styles.sectionTitle}>Plan y ruta</Text>
+
+            <View style={styles.detailsGrid}>
               <View style={styles.detailItem}>
-                <Icon name="time" size={20} color={theme.colors.info} />
+                <Icon
+                  name="calendar"
+                  size={20}
+                  color={theme.colors.textSecondary}
+                />
                 <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Ventana del evento</Text>
+                  <Text style={styles.detailLabel}>Fecha</Text>
+                  <Text style={styles.detailValue}>{formatDate(event.date)}</Text>
+                  {event.startTime && (
+                    <Text style={styles.detailSubValue}>
+                      Hora: {event.startTime}
+                    </Text>
+                  )}
+                </View>
+              </View>
+
+              {event.meetingPoint?.text && (
+                <View style={styles.detailItem}>
+                  <Icon
+                    name="location"
+                    size={20}
+                    color={theme.colors.textSecondary}
+                  />
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>Punto de encuentro</Text>
+                    <Text style={styles.detailValue}>
+                      {event.meetingPoint.text}
+                    </Text>
+                    {event.meetingPoint.mapUrl && (
+                      <TouchableOpacity
+                        onPress={() => openLink(event.meetingPoint!.mapUrl!)}
+                        style={styles.linkButton}
+                      >
+                        <Icon
+                          name="location"
+                          size={20}
+                          color={theme.colors.primary}
+                        />
+                        <Text style={styles.linkText}>
+                          Ir al punto de encuentro
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    {event.meetingPoint.routeUrl && (
+                      <TouchableOpacity
+                        onPress={() => openLink(event.meetingPoint!.routeUrl!)}
+                        style={styles.linkButton}
+                      >
+                        <Icon
+                          name="location"
+                          size={20}
+                          color={theme.colors.primary}
+                        />
+                        <Text style={styles.linkText}>Ver ruta</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {event.capacity && (
+                <View style={styles.detailItem}>
+                  <Icon
+                    name="people"
+                    size={20}
+                    color={theme.colors.textSecondary}
+                  />
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>Capacidad</Text>
+                    <Text style={styles.detailValue}>
+                      Máximo {event.capacity} participantes
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {event.difficulty && (
+                <View style={styles.detailItem}>
+                  <Icon
+                    name="alert-circle"
+                    size={20}
+                    color={getDifficultyColor(event.difficulty)}
+                  />
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>Dificultad</Text>
+                    <Text style={styles.detailValue}>
+                      {getDifficultyText(event.difficulty)}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {event.window && (
+                <View style={styles.detailItem}>
+                  <Icon name="time" size={20} color={theme.colors.info} />
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>Ventana del evento</Text>
+                    <Text style={styles.detailValue}>
+                      Inicia: {formatTimestamp(event.window.start)}
+                    </Text>
+                    <Text style={styles.detailSubValue}>
+                      Termina: {formatTimestamp(event.window.end)}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.detailItem}>
+                <Icon
+                  name={event.joinMode === 'public' ? 'globe' : 'lock-closed'}
+                  size={20}
+                  color={theme.colors.textSecondary}
+                />
+                <View style={styles.detailContent}>
+                  <Text style={styles.detailLabel}>Modo de acceso</Text>
                   <Text style={styles.detailValue}>
-                    Inicia: {formatTimestamp(event.window.start)}
-                  </Text>
-                  <Text style={styles.detailSubValue}>
-                    Termina: {formatTimestamp(event.window.end)}
+                    {event.joinMode === 'public'
+                      ? 'Público'
+                      : 'Privado (con código)'}
                   </Text>
                 </View>
               </View>
-            )}
+            </View>
 
-            <View style={styles.detailItem}>
-              <Icon
-                name={event.joinMode === 'public' ? 'globe' : 'lock-closed'}
-                size={20}
-                color={theme.colors.textSecondary}
-              />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Modo de acceso</Text>
-                <Text style={styles.detailValue}>
-                  {event.joinMode === 'public'
-                    ? 'Público'
-                    : 'Privado (con código)'}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {event.notes && (
-            <View style={styles.notesSection}>
-              <Text style={styles.sectionTitle}>Notas adicionales</Text>
-              <Text style={styles.eventNotes}>{event.notes}</Text>
-            </View>
-          )}
-        </Card>
-
-        <Card style={styles.summaryCard}>
-          <Text style={styles.sectionTitle}>Participantes</Text>
-          <Text style={styles.summaryText}>
-            Ve quién más va al evento y accede a sus perfiles públicos.
-          </Text>
-          <View style={styles.participantsStats}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{goingCount}</Text>
-              <Text style={styles.statLabel}>Confirmados</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{maybeCount}</Text>
-              <Text style={styles.statLabel}>Tal vez</Text>
-            </View>
-            {event.capacity && (
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{event.capacity}</Text>
-                <Text style={styles.statLabel}>Capacidad</Text>
+            {event.notes && (
+              <View style={styles.notesSection}>
+                <Text style={styles.sectionTitle}>Notas adicionales</Text>
+                <Text style={styles.eventNotes}>{event.notes}</Text>
               </View>
             )}
-          </View>
-          {(registration || isAdmin) && (
-            <>
-              <Button
-                title="Ver lista de participantes"
-                onPress={() =>
-                  navigation.navigate('Participants', { eventId: event.id })
-                }
-                style={styles.viewParticipantsBtn}
-              />
-            </>
-          )}
-        </Card>
-
-        {isAdmin && event.inviteCode && (
-          <Card style={styles.adminCard}>
-            <View style={styles.adminHeader}>
-              <Icon name="person" size={20} color={theme.colors.primary} />
-              <Text style={styles.adminTitle}>Código de invitación</Text>
-            </View>
-            <Text style={styles.inviteCodeText}>{event.inviteCode}</Text>
-            <Text style={styles.adminMessage}>
-              Comparte este código con los participantes
-            </Text>
           </Card>
-        )}
-
-        {(registration || isAdmin) && (
-          <Card
-            style={
-              isEventActive
-                ? { ...styles.eventControlCard, ...styles.eventActiveCard }
-                : styles.eventControlCard
-            }
-          >
-            <View style={styles.eventControlHeader}>
-              <Icon
-                name={isEventActive ? 'radio-button-on' : 'radio-button-off'}
-                size={24}
-                color={
-                  isEventActive
-                    ? theme.colors.success
-                    : theme.colors.textSecondary
-                }
-              />
-              <Text style={styles.eventControlTitle}>
-                {isEventActive ? 'Evento Activo' : 'Control de Evento'}
+          {onlineOutside && (
+            <Card style={styles.summaryCard}>
+              <Text style={styles.sectionTitle}>Participantes</Text>
+              <Text style={styles.summaryText}>
+                Ve quién más va al evento y accede a sus perfiles públicos.
               </Text>
-            </View>
-
-            <Text style={styles.eventControlMessage}>
-              {isEventActive
-                ? 'El seguimiento de tu ubicación está activo. Los checkpoints se registrarán automáticamente.'
-                : 'Inicia el evento para comenzar el seguimiento de checkpoints.'}
-            </Text>
-
-            {registration?.routeId && (
-              <View
-                style={[styles.detailItem, { marginBottom: theme.spacing.md }]}
-              >
-                <View style={styles.detailContentRoute}>
-                  <Text style={[styles.detailLabel, { marginTop: 5 }]}>
-                    Ruta seleccionada:{' '}
-                  </Text>
-                  <Text style={styles.detailValue}>
-                    {selectedRouteName ||
-                      routes.find(r => r.id === registration.routeId)?.name ||
-                      'Ruta'}
-                  </Text>
+              <View style={styles.participantsStats}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{goingCount}</Text>
+                  <Text style={styles.statLabel}>Confirmados</Text>
                 </View>
-              </View>
-            )}
-
-            <Button
-              title={isEventActive ? 'Detener Evento' : 'Iniciar Evento'}
-              onPress={isEventActive ? handleStopEvent : handleStartEvent}
-              loading={geofenceLoading}
-              style={{
-                ...styles.eventControlButton,
-                ...(isEventActive
-                  ? styles.stopEventButton
-                  : styles.startEventButton),
-              }}
-            />
-
-            {isEventActive && (
-              <Button
-                title="Ver progreso de checkpoints"
-                onPress={() =>
-                  navigation.navigate('Checkpoints', {
-                    eventId: event.id,
-                    userId: user?.uid || '',
-                    routeId: registration?.routeId || null,
-                  })
-                }
-                style={styles.viewCheckpointsBtn}
-              />
-            )}
-
-            {geofenceStatus.isActive && (
-              <View style={styles.geofenceStats}>
-                <Text style={styles.geofenceStatsText}>
-                  📍 {geofenceStatus.checkpointsCount} checkpoints activos
-                </Text>
-                <Text style={styles.geofenceStatsText}>
-                  {geofenceStatus.isOnline ? '🟢 En línea' : '🔴 Sin conexión'}
-                </Text>
-                {geofenceStatus.pendingEvents > 0 && (
-                  <Text style={styles.geofenceStatsText}>
-                    ⏳ {geofenceStatus.pendingEvents} eventos pendientes de
-                    sincronizar
-                  </Text>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>{maybeCount}</Text>
+                  <Text style={styles.statLabel}>Tal vez</Text>
+                </View>
+                {event.capacity && (
+                  <View style={styles.statItem}>
+                    <Text style={styles.statNumber}>{event.capacity}</Text>
+                    <Text style={styles.statLabel}>Capacidad</Text>
+                  </View>
                 )}
               </View>
-            )}
-          </Card>
-        )}
-
-        {!registration && !isAdmin ? (
-          <Card style={styles.joinCard}>
-            {event.multipleRoutes && routes.length > 0 && (
-              <View style={{ marginBottom: theme.spacing.md }}>
-                <Text style={styles.joinTitle}>Selecciona una ruta</Text>
-                {routes.map(r => (
-                  <TouchableOpacity
-                    key={r.id}
-                    style={[
-                      selectedRouteId === r.id
-                        ? styles.statusButtonRouteSelected
-                        : styles.statusButton,
-                    ]}
-                    onPress={() => {
-                      setSelectedRouteId(r.id);
-                      setSelectedRouteName(r.name || null);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        selectedRouteId === r.id ? styles.statusButtonTextActiveRoute : styles.statusButtonText
-                      ]}
-                    >
-                      {r.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-            {event.joinMode === 'code' && !showInviteInput ? (
-              <View>
-                <Text style={styles.joinTitle}>Evento Privado</Text>
-                <Text style={styles.joinMessage}>
-                  Este evento requiere un código de invitación para unirse.
-                </Text>
-                <Button
-                  title="Ingresar código"
-                  onPress={() => setShowInviteInput(true)}
-                  style={styles.joinButton}
-                />
-              </View>
-            ) : event.joinMode === 'code' && showInviteInput ? (
-              <View>
-                <Text style={styles.joinTitle}>Código de Invitación</Text>
-                <TextInput
-                  style={styles.codeInput}
-                  value={inviteCode}
-                  onChangeText={t => setInviteCode((t || '').toUpperCase())}
-                  placeholder="Ingresa el código"
-                  autoCapitalize="characters"
-                />
-                <View style={styles.codeButtons}>
+              {(registration || isAdmin) && (
+                <>
                   <Button
-                    title="Cancelar"
-                    onPress={() => {
-                      setShowInviteInput(false);
-                      setInviteCode('');
-                    }}
-                    variant="outline"
-                    style={styles.codeButton}
+                    title="Ver lista de participantes"
+                    onPress={() =>
+                      navigation.navigate('Participants', { eventId: event.id })
+                    }
+                    style={styles.viewParticipantsBtn}
                   />
+                </>
+              )}
+            </Card>
+          )}
+
+          {isAdmin && event.inviteCode && (
+            <Card style={styles.adminCard}>
+              <View style={styles.adminHeader}>
+                <Icon name="person" size={20} color={theme.colors.primary} />
+                <Text style={styles.adminTitle}>Código de invitación</Text>
+              </View>
+              <Text style={styles.inviteCodeText}>{event.inviteCode}</Text>
+              <Text style={styles.adminMessage}>
+                Comparte este código con los participantes
+              </Text>
+            </Card>
+          )}
+
+          {(registration || isAdmin) && (
+            <Card
+              style={
+                isEventActive
+                  ? { ...styles.eventControlCard, ...styles.eventActiveCard }
+                  : styles.eventControlCard
+              }
+            >
+              <View style={styles.eventControlHeader}>
+                <Icon
+                  name={isEventActive ? 'radio-button-on' : 'radio-button-off'}
+                  size={24}
+                  color={
+                    isEventActive
+                      ? theme.colors.success
+                      : theme.colors.textSecondary
+                  }
+                />
+                <Text style={styles.eventControlTitle}>
+                  {isEventActive ? 'Evento Activo' : 'Control de Evento'}
+                </Text>
+              </View>
+
+              <Text style={styles.eventControlMessage}>
+                {isEventActive
+                  ? 'El seguimiento de tu ubicación está activo. Los checkpoints se registrarán automáticamente.'
+                  : 'Inicia el evento para comenzar el seguimiento de checkpoints.'}
+              </Text>
+
+              {registration?.routeId && (
+                <View
+                  style={[styles.detailItem, { marginBottom: theme.spacing.md }]}
+                >
+                  <View style={styles.detailContentRoute}>
+                    <Text style={[styles.detailLabel, { marginTop: 5 }]}>
+                      Ruta seleccionada:{' '}
+                    </Text>
+                    <Text style={styles.detailValue}>
+                      {selectedRouteName ||
+                        routes.find(r => r.id === registration.routeId)?.name ||
+                        'Ruta'}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              <Button
+                title={isEventActive ? 'Detener Evento' : 'Iniciar Evento'}
+                onPress={isEventActive ? handleStopEvent : handleStartEvent}
+                loading={geofenceLoading}
+                style={{
+                  ...styles.eventControlButton,
+                  ...(isEventActive
+                    ? styles.stopEventButton
+                    : styles.startEventButton),
+                }}
+              />
+
+              {isEventActive && (
+                <Button
+                  title="Ver progreso de checkpoints"
+                  onPress={() =>
+                    navigation.navigate('Checkpoints', {
+                      eventId: event.id,
+                      userId: user?.uid || '',
+                      routeId: registration?.routeId || null,
+                    })
+                  }
+                  style={styles.viewCheckpointsBtn}
+                />
+              )}
+
+              {geofenceStatus.isActive && (
+                <View style={styles.geofenceStats}>
+                  <Text style={styles.geofenceStatsText}>
+                    📍 {geofenceStatus.checkpointsCount} checkpoints activos
+                  </Text>
+                  <Text style={styles.geofenceStatsText}>
+                    {geofenceStatus.isOnline ? '🟢 En línea' : '🔴 Sin conexión'}
+                  </Text>
+                  {geofenceStatus.pendingEvents > 0 && (
+                    <Text style={styles.geofenceStatsText}>
+                      ⏳ {geofenceStatus.pendingEvents} eventos pendientes de
+                      sincronizar
+                    </Text>
+                  )}
+                </View>
+              )}
+            </Card>
+          )}
+
+          {!registration && !isAdmin ? (
+            <Card style={styles.joinCard}>
+              {event.multipleRoutes && routes.length > 0 && (
+                <View style={{ marginBottom: theme.spacing.md }}>
+                  <Text style={styles.joinTitle}>Selecciona una ruta</Text>
+                  {routes.map(r => (
+                    <TouchableOpacity
+                      key={r.id}
+                      style={[
+                        selectedRouteId === r.id
+                          ? styles.statusButtonRouteSelected
+                          : styles.statusButton,
+                      ]}
+                      onPress={() => {
+                        setSelectedRouteId(r.id);
+                        setSelectedRouteName(r.name || null);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          selectedRouteId === r.id ? styles.statusButtonTextActiveRoute : styles.statusButtonText
+                        ]}
+                      >
+                        {r.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              {event.joinMode === 'code' && !showInviteInput ? (
+                <View>
+                  <Text style={styles.joinTitle}>Evento Privado</Text>
+                  <Text style={styles.joinMessage}>
+                    Este evento requiere un código de invitación para unirse.
+                  </Text>
                   <Button
-                    title="Unirse"
-                    onPress={handleJoinWithCode}
-                    style={styles.codeButton}
+                    title="Ingresar código"
+                    onPress={() => setShowInviteInput(true)}
+                    style={styles.joinButton}
+                  />
+                </View>
+              ) : event.joinMode === 'code' && showInviteInput ? (
+                <View>
+                  <Text style={styles.joinTitle}>Código de Invitación</Text>
+                  <TextInput
+                    style={styles.codeInput}
+                    value={inviteCode}
+                    onChangeText={t => setInviteCode((t || '').toUpperCase())}
+                    placeholder="Ingresa el código"
+                    autoCapitalize="characters"
+                  />
+                  <View style={styles.codeButtons}>
+                    <Button
+                      title="Cancelar"
+                      onPress={() => {
+                        setShowInviteInput(false);
+                        setInviteCode('');
+                      }}
+                      variant="outline"
+                      style={styles.codeButton}
+                    />
+                    <Button
+                      title="Unirse"
+                      onPress={handleJoinWithCode}
+                      style={styles.codeButton}
+                      disabled={event.multipleRoutes ? !selectedRouteId : false}
+                    />
+                  </View>
+                </View>
+              ) : (
+                <View>
+                  <Text style={styles.joinTitle}>Unirse al Evento</Text>
+                  <Text style={styles.joinMessage}>
+                    ¿Te gustaría participar en este evento?
+                  </Text>
+                  <Button
+                    title="Unirse al evento"
+                    onPress={handleJoinEvent}
+                    style={styles.joinButton}
                     disabled={event.multipleRoutes ? !selectedRouteId : false}
                   />
                 </View>
-              </View>
-            ) : (
-              <View>
-                <Text style={styles.joinTitle}>Unirse al Evento</Text>
-                <Text style={styles.joinMessage}>
-                  ¿Te gustaría participar en este evento?
-                </Text>
-                <Button
-                  title="Unirse al evento"
-                  onPress={handleJoinEvent}
-                  style={styles.joinButton}
-                  disabled={event.multipleRoutes ? !selectedRouteId : false}
-                />
-              </View>
-            )}
-          </Card>
-        ) : registration && !isAdmin ? (
-          <Card style={styles.statusCard}>
-            <Text style={styles.statusTitle}>Tu Estado</Text>
-            <View style={styles.statusButtons}>
-              <TouchableOpacity
-                style={[
-                  styles.statusButton,
-                  registration.status === 'going' && styles.statusButtonActive,
-                  { borderColor: theme.colors.success },
-                ]}
-                onPress={() => handleUpdateStatus('going')}
-              >
-                <Icon
-                  name="checkmark-circle"
-                  size={20}
-                  color={
-                    registration.status === 'going'
-                      ? theme.colors.white
-                      : theme.colors.success
-                  }
-                />
-                <Text
+              )}
+            </Card>
+          ) : registration && !isAdmin ? (
+            <Card style={styles.statusCard}>
+              <Text style={styles.statusTitle}>Tu Estado</Text>
+              <View style={styles.statusButtons}>
+                <TouchableOpacity
                   style={[
-                    styles.statusButtonText,
-                    registration.status === 'going' &&
-                      styles.statusButtonTextActive,
+                    styles.statusButton,
+                    registration.status === 'going' && styles.statusButtonActive,
+                    { borderColor: theme.colors.success },
                   ]}
+                  onPress={() => handleUpdateStatus('going')}
                 >
-                  Voy
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.statusButton,
-                  registration.status === 'maybe' && styles.statusButtonActive,
-                  { borderColor: theme.colors.warning },
-                ]}
-                onPress={() => handleUpdateStatus('maybe')}
-              >
-                <Icon
-                  name="help-circle"
-                  size={20}
-                  color={
-                    registration.status === 'maybe'
-                      ? theme.colors.white
-                      : theme.colors.warning
-                  }
-                />
-                <Text
-                  style={[
-                    styles.statusButtonText,
-                    registration.status === 'maybe' &&
+                  <Icon
+                    name="checkmark-circle"
+                    size={20}
+                    color={
+                      registration.status === 'going'
+                        ? theme.colors.white
+                        : theme.colors.success
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.statusButtonText,
+                      registration.status === 'going' &&
                       styles.statusButtonTextActive,
-                  ]}
-                >
-                  Tal vez
-                </Text>
-              </TouchableOpacity>
+                    ]}
+                  >
+                    Voy
+                  </Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[
-                  styles.statusButton,
-                  registration.status === 'notgoing' &&
-                    styles.statusButtonActive,
-                  { borderColor: theme.colors.error },
-                ]}
-                onPress={() => handleUpdateStatus('notgoing')}
-              >
-                <Icon
-                  name="close-circle"
-                  size={20}
-                  color={
-                    registration.status === 'notgoing'
-                      ? theme.colors.white
-                      : theme.colors.error
-                  }
-                />
-                <Text
+                <TouchableOpacity
                   style={[
-                    styles.statusButtonText,
+                    styles.statusButton,
+                    registration.status === 'maybe' && styles.statusButtonActive,
+                    { borderColor: theme.colors.warning },
+                  ]}
+                  onPress={() => handleUpdateStatus('maybe')}
+                >
+                  <Icon
+                    name="help-circle"
+                    size={20}
+                    color={
+                      registration.status === 'maybe'
+                        ? theme.colors.white
+                        : theme.colors.warning
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.statusButtonText,
+                      registration.status === 'maybe' &&
+                      styles.statusButtonTextActive,
+                    ]}
+                  >
+                    Tal vez
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.statusButton,
                     registration.status === 'notgoing' &&
-                      styles.statusButtonTextActive,
+                    styles.statusButtonActive,
+                    { borderColor: theme.colors.error },
                   ]}
+                  onPress={() => handleUpdateStatus('notgoing')}
                 >
-                  No voy
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Card>
-        ) : null}
+                  <Icon
+                    name="close-circle"
+                    size={20}
+                    color={
+                      registration.status === 'notgoing'
+                        ? theme.colors.white
+                        : theme.colors.error
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.statusButtonText,
+                      registration.status === 'notgoing' &&
+                      styles.statusButtonTextActive,
+                    ]}
+                  >
+                    No voy
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </Card>
+          ) : null}
 
-        {registration && !isAdmin && (
-          <Button
-            title="Salir del evento"
-            onPress={handleLeaveEvent}
-            style={{
-              marginTop: theme.spacing.sm,
-              marginBottom: theme.spacing.xxl,
-              backgroundColor: theme.colors.error,
-            }}
-          />
-        )}
+          {registration && !isAdmin && (
+            <Button
+              title="Salir del evento"
+              onPress={handleLeaveEvent}
+              style={{
+                marginTop: theme.spacing.sm,
+                marginBottom: theme.spacing.xxl,
+                backgroundColor: theme.colors.error,
+              }}
+            />
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -1225,7 +1304,6 @@ const styles = StyleSheet.create({
   heroMetaRow: {
     flexDirection: 'row',
     gap: theme.spacing.sm,
-    justifyContent: 'space-between',
     marginTop: theme.spacing.md,
   },
   metaChip: {

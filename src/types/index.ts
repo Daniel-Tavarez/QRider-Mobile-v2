@@ -81,23 +81,36 @@ export interface Profile {
   uid: string;
   fullName: string;
   nickname?: string;
+
+  // Medical info
   bloodType?: BloodType;
   allergies?: string;
   medications?: string;
   medicalNotes?: string;
   dateOfBirth?: string;
   nationalId?: string;
+
+  // Contact info
   primaryPhone: string;
   secondaryPhone?: string;
+
+  // Emergency contacts
   contacts: EmergencyContact[];
-  updatedAt: FirebaseFirestoreTypes.Timestamp;
-  // Extended fields
-  insurances?: InsuranceInfo[];
+
+  // Extended fields inspired by the second version
   address?: AddressInfo;
-  preferences?: PreferencesInfo;
-  aeroAmbulance?: AeroAmbulanceInfo;
-  preferredCare?: PreferredCareInfo;
+
   bike?: BikeInfo;
+
+  insurances?: InsuranceInfo[];
+
+  aeroAmbulance?: AeroAmbulanceInfo;
+
+  preferredCare?: PreferredCareInfo;
+
+  preferences?: PreferencesInfo;
+
+  updatedAt: FirebaseFirestoreTypes.Timestamp;
 }
 
 export interface Event {
@@ -187,4 +200,5 @@ export type RootStackParamList = {
   GeofenceDebug: { eventId: string; userId: string };
   Participants: { eventId: string };
   Checkpoints: { eventId: string; userId: string, routeId: string | null };
+  PublicProfile: { uid: string };
 };

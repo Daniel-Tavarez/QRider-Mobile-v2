@@ -17,6 +17,7 @@ import { EventsScreen } from '../screens/EventsScreen';
 import { GeofenceDebugScreen } from '../screens/GeofenceDebugScreen';
 import { ParticipantsScreen } from '../screens/ParticipantsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { PublicProfileScreen } from '../screens/PublicProfileScreen';
 import { Platform } from 'react-native';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -116,6 +117,11 @@ export function AppNavigator() {
               name="Checkpoints"
               component={CheckpointsScreen}
               options={{ title: 'Checkpoints' }}
+            />
+            <Stack.Screen
+              name="PublicProfile"
+              component={PublicProfileScreen}
+              options={{ title: 'Perfil público' }}
             />
           </>
         ) : (

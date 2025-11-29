@@ -55,7 +55,7 @@ export function AuthScreen() {
         return;
       }
     }
-
+debugger
     setLoading(true);
     try {
       if (isSignUp) {

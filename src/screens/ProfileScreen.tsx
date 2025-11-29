@@ -149,10 +149,12 @@ export function ProfileScreen() {
                     <Text style={styles.infoValue}>"{profile.nickname}"</Text>
                   </View>
                 )}
-                <View style={styles.infoItem}>
-                  <Text style={styles.infoLabel}>Teléfono principal</Text>
-                  <Text style={styles.infoValue}>{profile.primaryPhone}</Text>
-                </View>
+                {profile.primaryPhone && (
+                  <View style={styles.infoItem}>
+                    <Text style={styles.infoLabel}>Teléfono principal</Text>
+                    <Text style={styles.infoValue}>{profile.primaryPhone}</Text>
+                  </View>
+                )}
                 {profile.secondaryPhone && (
                   <View style={styles.infoItem}>
                     <Text style={styles.infoLabel}>Teléfono secundario</Text>
@@ -385,7 +387,7 @@ export function ProfileScreen() {
             </Card>
 
             <Card
-              style={[styles.sectionCard, styles.moreMarginBottom]}
+              style={{...styles.sectionCard, ...styles.moreMarginBottom}}
             >
               <Text style={styles.sectionTitle}>Vehículo</Text>
               {profile.bike ? (

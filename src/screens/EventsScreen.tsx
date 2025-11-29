@@ -1,4 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import firestore from '@react-native-firebase/firestore';
+import NetInfo from '@react-native-community/netinfo';
 import React, { useEffect, useState } from 'react';
 import {
   RefreshControl,
@@ -16,6 +18,9 @@ import { theme } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { Event } from '../types';
 
+const ACTIVE_EVENT_KEY = 'active_event_id';
+const eventCacheKeyFor = (eventId: string) => `event_cache_${eventId}`;
+
 interface EventsScreenProps {
   navigation: any;
 }
@@ -26,6 +31,9 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
   const [participantCounts, setParticipantCounts] = useState<
     Record<string, number>
   >({});
+  const [attendedCount, setAttendedCount] = useState(0);
+  const [activeEventId, setActiveEventId] = useState<string | null>(null);
+  const [activeEventTitle, setActiveEventTitle] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -33,8 +41,55 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
     loadEvents();
   }, []);
 
+  const loadActiveEvent = async () => {
+    try {
+      const eventId = await AsyncStorage.getItem(ACTIVE_EVENT_KEY);
+      setActiveEventId(eventId);
+      if (eventId) {
+        let title: string | null = null;
+        try {
+          const cached = await AsyncStorage.getItem(eventCacheKeyFor(eventId));
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            title = parsed?.event?.title ?? null;
+          }
+        } catch { }
+
+        if (!title) {
+          try {
+            const doc = await firestore().collection('events').doc(eventId).get();
+            if (doc.exists()) {
+              const data = doc.data() as Event;
+              title = (data as any).title ?? null;
+              await AsyncStorage.setItem(
+                eventCacheKeyFor(eventId),
+                JSON.stringify({ event: { ...data, id: doc.id } }),
+              );
+            }
+          } catch { }
+        }
+
+        setActiveEventTitle(title);
+      } else {
+        setActiveEventTitle(null);
+      }
+    } catch (error) {
+      console.error('Error loading active event:', error);
+    }
+  };
+
   const loadEvents = async () => {
     try {
+      const state = await NetInfo.fetch();
+      const isOnline =
+        state.isConnected === true && state.isInternetReachable === true;
+      if (!isOnline) {
+        await loadActiveEvent();
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       yesterday.setHours(0, 0, 0, 0);
@@ -66,11 +121,24 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
         counts[event.id] = countSnap.data().count;
       }
       setParticipantCounts(counts);
+
+      // Load attended count for current user
+      if (user?.uid) {
+        const attendedSnap = await firestore()
+          .collection('eventRegistrations')
+          .where('uid', '==', user.uid)
+          .count()
+          .get();
+        setAttendedCount(attendedSnap.data().count ?? 0);
+      } else {
+        setAttendedCount(0);
+      }
     } catch (error) {
       console.error('Error loading events:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      await loadActiveEvent();
     }
   };
 
@@ -158,12 +226,7 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
           </View>
           <View style={styles.metricCard}>
             <Text style={styles.metricLabel}>Asistidos</Text>
-            <Text style={styles.metricValue}>
-              {events.reduce(
-                (acc, ev) => acc + (participantCounts[ev.id] || 0),
-                0,
-              )}
-            </Text>
+            <Text style={styles.metricValue}>{attendedCount}</Text>
           </View>
         </View>
       </View>
@@ -175,6 +238,32 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
         }
         showsVerticalScrollIndicator={false}
       >
+        {activeEventId && (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('EventDetail', { eventId: activeEventId })}
+            activeOpacity={0.9}
+          >
+            <Card style={styles.activeEventCard}>
+              <View style={styles.activeEventRow}>
+                <View style={styles.activeEventIcon}>
+                  <Icon name="compass" size={18} color={theme.colors.white} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.activeEventLabel}>Evento activo</Text>
+                  <Text style={styles.activeEventTitle}>
+                    {activeEventTitle || 'Reanudar seguimiento'}
+                  </Text>
+                </View>
+                <Icon
+                  name="chevron-forward"
+                  size={20}
+                  color={theme.colors.gray[500]}
+                />
+              </View>
+            </Card>
+          </TouchableOpacity>
+        )}
+
         {events.length > 0 ? (
           events.map((event, index) => {
             const isLast = index === events.length - 1;
@@ -384,6 +473,38 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontWeight: '800',
     fontSize: theme.typography.h3.fontSize,
+  },
+  activeEventCard: {
+    marginBottom: theme.spacing.md,
+    borderRadius: theme.borderRadius.xl,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[100],
+    backgroundColor: theme.colors.white,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  activeEventRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
+  activeEventIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeEventLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.typography.small.fontSize,
+    fontWeight: '700',
+  },
+  activeEventTitle: {
+    color: theme.colors.text,
+    fontWeight: '800',
+    fontSize: theme.typography.body.fontSize,
   },
   content: {
     flex: 1,

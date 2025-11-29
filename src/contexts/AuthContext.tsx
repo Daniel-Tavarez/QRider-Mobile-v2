@@ -4,7 +4,7 @@ import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { geofenceService } from '../modules/geofence';
-import { User } from '../types';
+import { Profile, User } from '../types';
 
 let GoogleSignin: any = null;
 try {
@@ -47,6 +47,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return Math.random().toString(36).substring(2, 10);
   };
 
+  const createBasicProfile = async (uid: string, displayName: string) => {
+    const timestamp = firestore.Timestamp.now();
+    const profileData: Partial<Profile> = {
+      fullName: displayName || 'QRider',
+      primaryPhone: '',
+      contacts: [],
+      updatedAt: timestamp,
+    };
+    await firestore().collection('profiles').doc(uid).set(profileData, { merge: true });
+    return profileData;
+  };
+
   const createUserDocument = async (
     uid: string,
     email: string,
@@ -54,13 +66,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     photoURL?: string
   ): Promise<User> => {
     const slug = generateSlug();
-    
+    debugger
     const timestamp = firestore.Timestamp.now();
     const userData: User = {
       uid,
       email,
       displayName: displayName || email.split('@')[0] || 'QRider',
-      photoURL: photoURL || undefined,
+      photoURL: photoURL || '',
       slug,
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -71,6 +83,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       user_id: uid,
       created_at: timestamp
     });
+
+    // Ensure a basic profile exists
+    try {
+      await createBasicProfile(uid, userData.displayName);
+    } catch (error) {
+      console.warn('No se pudo crear el perfil básico:', error);
+    }
     
     return userData;
   };

@@ -1,4 +1,4 @@
-import firestore from '@react-native-firebase/firestore';
+import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import {
@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -22,18 +23,40 @@ interface ParticipantWithProfile extends EventRegistration {
   profile?: Profile;
 }
 
+const PAGE_SIZE = 10;
+
 export function ParticipantsScreen({ route, navigation }: ParticipantsScreenProps) {
   const { eventId } = route.params;
   const [event, setEvent] = useState<Event | null>(null);
   const [participants, setParticipants] = useState<ParticipantWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [lastDoc, setLastDoc] = useState<FirebaseFirestoreTypes.DocumentSnapshot | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusTotals, setStatusTotals] = useState({ going: 0, maybe: 0, notgoing: 0 });
 
   useEffect(() => {
-    loadData();
+    setParticipants([]);
+    setLastDoc(null);
+    setHasMore(true);
+    loadInitialData();
   }, [eventId]);
 
-  const loadData = async () => {
+  const loadInitialData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([loadEventDetails(), loadParticipants(true), loadStatusTotals()]);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const loadEventDetails = async () => {
     try {
       const eventDoc = await firestore()
         .collection('events')
@@ -43,11 +66,56 @@ export function ParticipantsScreen({ route, navigation }: ParticipantsScreenProp
       if (eventDoc.exists()) {
         setEvent({ id: eventDoc.id, ...eventDoc.data() } as Event);
       }
+    } catch (error) {
+      console.error('Error loading event:', error);
+    }
+  };
 
-      const participantsSnap = await firestore()
+  const loadStatusTotals = async () => {
+    try {
+      const [goingSnap, maybeSnap, notGoingSnap] = await Promise.all([
+        firestore()
+          .collection('eventRegistrations')
+          .where('eventId', '==', eventId)
+          .where('status', '==', 'going')
+          .count()
+          .get(),
+        firestore()
+          .collection('eventRegistrations')
+          .where('eventId', '==', eventId)
+          .where('status', '==', 'maybe')
+          .count()
+          .get(),
+        firestore()
+          .collection('eventRegistrations')
+          .where('eventId', '==', eventId)
+          .where('status', '==', 'notgoing')
+          .count()
+          .get(),
+      ]);
+
+      setStatusTotals({
+        going: goingSnap.data().count ?? 0,
+        maybe: maybeSnap.data().count ?? 0,
+        notgoing: notGoingSnap.data().count ?? 0,
+      });
+    } catch (error) {
+      console.error('Error loading status totals:', error);
+    }
+  };
+
+  const loadParticipants = async (reset = false) => {
+    if (loadingMore) return;
+    try {
+      setLoadingMore(true);
+      const baseQuery = firestore()
         .collection('eventRegistrations')
         .where('eventId', '==', eventId)
-        .get();
+        .orderBy('createdAt', 'desc')
+        .limit(PAGE_SIZE);
+
+      const query = reset || !lastDoc ? baseQuery : baseQuery.startAfter(lastDoc);
+      const participantsSnap = await query.get();
 
       const participantsData = await Promise.all(
         participantsSnap.docs.map(async (docSnap) => {
@@ -72,18 +140,30 @@ export function ParticipantsScreen({ route, navigation }: ParticipantsScreenProp
         })
       );
 
-      setParticipants(participantsData);
+      const newLastDoc = participantsSnap.docs[participantsSnap.docs.length - 1] || null;
+      setLastDoc(newLastDoc);
+      setHasMore(participantsSnap.docs.length === PAGE_SIZE);
+
+      setParticipants(prev =>
+        reset ? participantsData : [...prev, ...participantsData]
+      );
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading participants:', error);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setLoadingMore(false);
     }
   };
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    loadData();
+    setParticipants([]);
+    setLastDoc(null);
+    setHasMore(true);
+    try {
+      await Promise.all([loadEventDetails(), loadParticipants(true), loadStatusTotals()]);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -104,13 +184,18 @@ export function ParticipantsScreen({ route, navigation }: ParticipantsScreenProp
     }
   };
 
+  const filteredParticipants = participants.filter(p => {
+    if (!searchQuery.trim()) return true;
+    const name = p.profile?.fullName || 'Usuario';
+    return name.toLowerCase().includes(searchQuery.trim().toLowerCase());
+  });
+
+  const totalParticipants =
+    statusTotals.going + statusTotals.maybe + statusTotals.notgoing || participants.length;
+
   if (loading) {
     return <LoadingSpinner text="Cargando participantes..." />;
   }
-
-  const goingCount = participants.filter(p => p.status === 'going').length;
-  const maybeCount = participants.filter(p => p.status === 'maybe').length;
-  const notGoingCount = participants.filter(p => p.status === 'notgoing').length;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -133,8 +218,8 @@ export function ParticipantsScreen({ route, navigation }: ParticipantsScreenProp
           <View style={styles.heroCard}>
             <Text style={styles.eventTitle}>{event.title}</Text>
             <Text style={styles.eventSubtitle}>
-              {participants.length}{' '}
-              {participants.length === 1 ? 'participante' : 'participantes'}
+              {totalParticipants}{' '}
+              {totalParticipants === 1 ? 'participante' : 'participantes'} en total
             </Text>
             <View style={styles.chipRow}>
               <View style={styles.chip}>
@@ -159,24 +244,38 @@ export function ParticipantsScreen({ route, navigation }: ParticipantsScreenProp
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Confirmados</Text>
-            <Text style={styles.statValue}>{goingCount}</Text>
+            <Text style={styles.statValue}>{statusTotals.going}</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Tal vez</Text>
-            <Text style={styles.statValue}>{maybeCount}</Text>
+            <Text style={styles.statValue}>{statusTotals.maybe}</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>No van</Text>
-            <Text style={styles.statValue}>{notGoingCount}</Text>
+            <Text style={styles.statValue}>{statusTotals.notgoing}</Text>
           </View>
         </View>
 
         <Card style={styles.participantsCard}>
-          <Text style={styles.sectionTitle}>Lista de participantes</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Lista de participantes</Text>
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Buscar por nombre"
+              placeholderTextColor={theme.colors.gray[400]}
+              style={styles.searchInput}
+            />
+          </View>
 
-          {participants.length > 0 ? (
-            participants.map((participant, index) => (
-              <View key={`${participant.uid}-${index}`} style={styles.participantItem}>
+          {filteredParticipants.length > 0 ? (
+            filteredParticipants.map((participant, index) => (
+              <TouchableOpacity
+                key={`${participant.uid}-${index}`}
+                style={styles.participantItem}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('PublicProfile', { uid: participant.uid })}
+              >
                 <View style={styles.participantLeft}>
                   <View style={[
                     styles.participantAvatar,
@@ -205,13 +304,29 @@ export function ParticipantsScreen({ route, navigation }: ParticipantsScreenProp
                     {getStatusText(participant.status)}
                   </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))
           ) : (
             <View style={styles.emptyContainer}>
               <Icon name="people" size={48} color={theme.colors.gray[400]} />
-              <Text style={styles.emptyText}>No hay participantes aún</Text>
+              <Text style={styles.emptyText}>
+                {searchQuery.trim()
+                  ? 'No hay coincidencias con la búsqueda'
+                  : 'No hay participantes aún'}
+              </Text>
             </View>
+          )}
+
+          {hasMore && (
+            <TouchableOpacity
+              style={[styles.loadMoreButton, loadingMore && styles.loadMoreButtonDisabled]}
+              onPress={() => loadParticipants()}
+              disabled={loadingMore}
+            >
+              <Text style={styles.loadMoreText}>
+                {loadingMore ? 'Cargando...' : 'Ver más participantes'}
+              </Text>
+            </TouchableOpacity>
           )}
         </Card>
       </ScrollView>
@@ -328,11 +443,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.gray[100],
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
   sectionTitle: {
     fontSize: theme.typography.h4.fontSize,
     fontWeight: '800',
     color: theme.colors.text,
-    marginBottom: theme.spacing.sm,
+    marginBottom: 0,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[200],
+    borderRadius: theme.borderRadius.lg,
+    paddingHorizontal: theme.spacing.md,
+    backgroundColor: theme.colors.gray[50],
+    color: theme.colors.text,
   },
   participantItem: {
     flexDirection: 'row',
@@ -391,5 +523,21 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body.fontSize,
     color: theme.colors.textSecondary,
     marginTop: theme.spacing.md,
+  },
+  loadMoreButton: {
+    marginTop: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.gray[200],
+    alignItems: 'center',
+    backgroundColor: theme.colors.white,
+  },
+  loadMoreButtonDisabled: {
+    opacity: 0.6,
+  },
+  loadMoreText: {
+    color: theme.colors.text,
+    fontWeight: '700',
   },
 });
