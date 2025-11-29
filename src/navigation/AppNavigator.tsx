@@ -17,6 +17,7 @@ import { EventsScreen } from '../screens/EventsScreen';
 import { GeofenceDebugScreen } from '../screens/GeofenceDebugScreen';
 import { ParticipantsScreen } from '../screens/ParticipantsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { ProfileEditScreen } from '../screens/ProfileEditScreen';
 import { PublicProfileScreen } from '../screens/PublicProfileScreen';
 import { Platform } from 'react-native';
 
@@ -122,6 +123,11 @@ export function AppNavigator() {
               name="PublicProfile"
               component={PublicProfileScreen}
               options={{ title: 'Perfil público' }}
+            />
+            <Stack.Screen
+              name="ProfileEdit"
+              component={ProfileEditScreen}
+              options={{ title: 'Editar perfil' }}
             />
           </>
         ) : (

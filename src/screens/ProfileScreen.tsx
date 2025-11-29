@@ -10,15 +10,18 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Card } from '../components/common/Card';
 import { Icon } from '../components/common/Icon';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { theme } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
-import { Profile } from '../types';
+import { Profile, RootStackParamList } from '../types';
 
 export function ProfileScreen() {
   const { user, userData, logout } = useAuth();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -129,6 +132,15 @@ export function ProfileScreen() {
               </Text>
               <Text style={styles.userEmail}>{userData?.email}</Text>
             </View>
+          </View>
+          <View style={styles.userActions}>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => navigation.navigate('ProfileEdit')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.editButtonText}>Editar Perfil</Text>
+            </TouchableOpacity>
           </View>
         </Card>
       </View>
@@ -506,6 +518,26 @@ const styles = StyleSheet.create({
     color: theme.colors.white,
     fontWeight: '700',
   },
+  userActions: {
+    position: 'absolute',
+    right: 8,
+    top: -5,
+    marginTop: theme.spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.sm,
+  },
+  editButtonText: {
+    color: theme.colors.primary,
+    fontWeight: '700',
+    fontSize: theme.typography.caption.fontSize,
+  },
   content: {
     flex: 1,
     padding: theme.spacing.lg,
@@ -513,6 +545,10 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xxl,
   },
   userCard: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: theme.spacing.sm,
     borderWidth: 1,
     borderColor: theme.colors.gray[100],

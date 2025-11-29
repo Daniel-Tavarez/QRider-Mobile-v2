@@ -81,35 +81,20 @@ export interface Profile {
   uid: string;
   fullName: string;
   nickname?: string;
-
-  // Medical info
   bloodType?: BloodType;
   allergies?: string;
   medications?: string;
   medicalNotes?: string;
   dateOfBirth?: string;
-  nationalId?: string;
-
-  // Contact info
   primaryPhone: string;
   secondaryPhone?: string;
-
-  // Emergency contacts
   contacts: EmergencyContact[];
-
-  // Extended fields inspired by the second version
   address?: AddressInfo;
-
   bike?: BikeInfo;
-
   insurances?: InsuranceInfo[];
-
   aeroAmbulance?: AeroAmbulanceInfo;
-
   preferredCare?: PreferredCareInfo;
-
   preferences?: PreferencesInfo;
-
   updatedAt: FirebaseFirestoreTypes.Timestamp;
 }
 
@@ -201,4 +186,5 @@ export type RootStackParamList = {
   Participants: { eventId: string };
   Checkpoints: { eventId: string; userId: string, routeId: string | null };
   PublicProfile: { uid: string };
+  ProfileEdit: undefined;
 };
