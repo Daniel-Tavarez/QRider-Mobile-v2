@@ -24,6 +24,19 @@ export function Icon({ name, size = 24, color = '#000' }: IconProps) {
           </Svg>
         );
 
+      case 'search':
+        return (
+          <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+            <Path
+              d="M11 4a7 7 0 015.292 11.708l3 3a1 1 0 01-1.414 1.414l-3-3A7 7 0 1111 4zm0 2a5 5 0 100 10 5 5 0 000-10z"
+              stroke={color}
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+        );
+
       case 'plus':
         return (
           <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">

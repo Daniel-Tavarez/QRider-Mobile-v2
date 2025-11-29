@@ -210,23 +210,37 @@ export function ProfileEditScreen({ navigation }: ProfileEditScreenProps) {
 
   const saveProfile = async () => {
     if (!user) return;
-    if (!form.fullName.trim()) {
-      Alert.alert('Requerido', 'El nombre completo es obligatorio.');
-      return;
-    }
-    if (!form.primaryPhone.trim()) {
-      Alert.alert('Requerido', 'El teléfono principal es obligatorio.');
-      return;
-    }
     setSaving(true);
     try {
-      const payload: Partial<Profile> = {
+      const pruneUndefined = (value: any): any => {
+        if (Array.isArray(value)) {
+          return value
+            .map(item => pruneUndefined(item))
+            .filter(item => item !== undefined && item !== null);
+        }
+        if (value && typeof value === 'object') {
+          const next: any = {};
+          Object.keys(value).forEach(key => {
+            const v = pruneUndefined(value[key]);
+            if (v !== undefined) {
+              next[key] = v;
+            }
+          });
+          return next;
+        }
+        if (value === undefined) return undefined;
+        return value;
+      };
+
+      const payload: Partial<Profile> = pruneUndefined({
         ...form,
         contacts: (form.contacts || []).filter(c => c.name || c.phone),
-        insurances: (form.insurances || []).filter(i => i.provider || i.policyNumber || i.planName),
+        insurances: (form.insurances || []).filter(
+          i => i.provider || i.policyNumber || i.planName,
+        ),
         updatedAt: firestore.FieldValue.serverTimestamp() as any,
         uid: user.uid,
-      };
+      });
       await firestore().collection('profiles').doc(user.uid).set(payload, { merge: true });
       Alert.alert('Guardado', 'Perfil actualizado');
       navigation.goBack();
@@ -743,8 +757,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.sm,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
     backgroundColor: theme.colors.primary,
   },
   backButton: {

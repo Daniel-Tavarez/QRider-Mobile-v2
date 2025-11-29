@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -34,6 +35,7 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
   const [attendedCount, setAttendedCount] = useState(0);
   const [activeEventId, setActiveEventId] = useState<string | null>(null);
   const [activeEventTitle, setActiveEventTitle] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -192,6 +194,9 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
 
   const upcomingEvents = events.filter(e => !isEventPast(e.date));
   const pastEvents = events.filter(e => isEventPast(e.date));
+  const filteredEvents = events.filter(event =>
+    event.title.toLowerCase().includes(search.trim().toLowerCase()),
+  );
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.container}>
@@ -263,10 +268,25 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
             </Card>
           </TouchableOpacity>
         )}
+        {/* <View style={styles.searchContainer}>
+          <Icon name="search" size={24} color={theme.colors.gray[500]} />
+          <TextInput
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Buscar evento por nombre"
+            placeholderTextColor={theme.colors.gray[400]}
+          />
+          {search.length > 0 && (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <Icon name="search" size={18} color={theme.colors.gray[400]} />
+            </TouchableOpacity>
+          )}
+        </View> */}
 
-        {events.length > 0 ? (
-          events.map((event, index) => {
-            const isLast = index === events.length - 1;
+        {filteredEvents.length > 0 ? (
+          filteredEvents.map((event, index) => {
+            const isLast = index === filteredEvents.length - 1;
             const going = participantCounts[event.id] || 0;
             const capacityCopy = event.capacity
               ? `${going}/${event.capacity}`
@@ -379,7 +399,9 @@ export function EventsScreen({ navigation }: EventsScreenProps) {
             />
             <Text style={styles.emptyTitle}>No hay eventos disponibles</Text>
             <Text style={styles.emptyMessage}>
-              Los eventos aparecerán aquí cuando estén disponibles.
+              {search.trim()
+                ? 'No encontramos eventos que coincidan con tu búsqueda.'
+                : 'Los eventos aparecerán aquí cuando estén disponibles.'}
             </Text>
           </View>
         )}
@@ -475,7 +497,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.h3.fontSize,
   },
   activeEventCard: {
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
     borderRadius: theme.borderRadius.xl,
     borderWidth: 1,
     borderColor: theme.colors.gray[100],
@@ -505,6 +527,22 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontWeight: '800',
     fontSize: theme.typography.body.fontSize,
+  },
+  searchContainer: {
+    marginTop: theme.spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: theme.colors.gray[400],
+    borderRadius: theme.borderRadius.full,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+  },
+  searchInput: {
+    flex: 1,
+    color: theme.colors.white,
   },
   content: {
     flex: 1,

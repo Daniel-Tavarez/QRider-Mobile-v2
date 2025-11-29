@@ -572,7 +572,9 @@ export function EventDetailScreen({
     }
   };
 
-  const getDifficultyText = (difficulty: string) => {
+  const getDifficultyText = (difficulty?: string) => {
+    if(!difficulty) return 'No especificado';
+
     switch (difficulty) {
       case 'easy':
         return 'Fácil';
@@ -678,6 +680,7 @@ export function EventDetailScreen({
   const isEventPast = new Date(event.date) < new Date();
   const goingCount = participants.filter(p => p.status === 'going').length;
   const maybeCount = participants.filter(p => p.status === 'maybe').length;
+  const isEventFull = event.capacity === goingCount;
   const totalCount = goingCount + maybeCount;
 
   console.log('EventDetailScreen - Debug:', {
@@ -899,7 +902,7 @@ export function EventDetailScreen({
               </View>
             )}
           </Card>
-          {onlineOutside && (
+          {onlineOutside && (registration || isAdmin) && (
             <Card style={styles.summaryCard}>
               <Text style={styles.sectionTitle}>Participantes</Text>
               <Text style={styles.summaryText}>
@@ -921,17 +924,15 @@ export function EventDetailScreen({
                   </View>
                 )}
               </View>
-              {(registration || isAdmin) && (
-                <>
-                  <Button
-                    title="Ver lista de participantes"
-                    onPress={() =>
-                      navigation.navigate('Participants', { eventId: event.id })
-                    }
-                    style={styles.viewParticipantsBtn}
-                  />
-                </>
-              )}
+              <>
+                <Button
+                  title="Ver lista de participantes"
+                  onPress={() =>
+                    navigation.navigate('Participants', { eventId: event.id })
+                  }
+                  style={styles.viewParticipantsBtn}
+                />
+              </>
             </Card>
           )}
 
@@ -1041,7 +1042,7 @@ export function EventDetailScreen({
 
           {!registration && !isAdmin ? (
             <Card style={styles.joinCard}>
-              {event.multipleRoutes && routes.length > 0 && (
+              {event.multipleRoutes && routes.length > 0 && !isEventFull && (
                 <View style={{ marginBottom: theme.spacing.md }}>
                   <Text style={styles.joinTitle}>Selecciona una ruta</Text>
                   {routes.map(r => (
@@ -1062,7 +1063,7 @@ export function EventDetailScreen({
                           selectedRouteId === r.id ? styles.statusButtonTextActiveRoute : styles.statusButtonText
                         ]}
                       >
-                        {r.name}
+                        {r.name} - {getDifficultyText(r.difficulty)}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -1075,10 +1076,16 @@ export function EventDetailScreen({
                     Este evento requiere un código de invitación para unirse.
                   </Text>
                   <Button
-                    title="Ingresar código"
+                    title={"Ingresar código"}
+                    disabled={isEventFull}
                     onPress={() => setShowInviteInput(true)}
                     style={styles.joinButton}
                   />
+                  {isEventFull && (
+                    <Text style={styles.fullMessage}>
+                      Este evento se encuentra lleno.
+                    </Text>
+                  )}
                 </View>
               ) : event.joinMode === 'code' && showInviteInput ? (
                 <View>
@@ -1242,8 +1249,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.lg,
-    paddingBottom: theme.spacing.sm,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
     backgroundColor: theme.colors.primary,
     borderBottomWidth: 0,
   },
@@ -1506,6 +1513,14 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body.fontSize,
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.lg,
+  },
+  fullMessage: {
+    fontSize: theme.typography.body.fontSize,
+    color: theme.colors.primary,
+    fontWeight: '600',
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+    textAlign: 'center',
   },
   joinButton: {
     marginBottom: 0,

@@ -3,6 +3,7 @@ import firestore from '@react-native-firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   Linking,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,6 +25,7 @@ export function ProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const parseHtmlList = (html?: string): string[] => {
     if (!html) return [];
@@ -45,11 +47,13 @@ export function ProfileScreen() {
   };
 
   useEffect(() => {
-    loadProfile();
+    loadProfile(false);
   }, [user]);
 
-  const loadProfile = async () => {
+  const loadProfile = async (isRefresh: boolean) => {
     if (!user) return;
+
+    if (!isRefresh) setLoading(true);
 
     try {
       const profileDoc = await firestore()
@@ -71,7 +75,11 @@ export function ProfileScreen() {
         if (cached) setProfile(JSON.parse(cached) as Profile);
       } catch { }
     } finally {
-      setLoading(false);
+      if (isRefresh) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -94,6 +102,11 @@ export function ProfileScreen() {
     } catch (error) {
       console.error('Error logging out:', error);
     }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadProfile(true);
   };
 
   if (loading) {
@@ -145,7 +158,13 @@ export function ProfileScreen() {
         </Card>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {profile ? (
           <>
             <Card style={styles.sectionCard}>

@@ -148,6 +148,7 @@ export interface RouteDoc {
   description?: string;
   eventId: string;
   active?: boolean;
+  difficulty?: string;
 }
 
 export interface Checkpoint {
